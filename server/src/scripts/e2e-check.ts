@@ -1,12 +1,8 @@
 import axios from 'axios';
+import { MongoMemoryServer } from 'mongodb-memory-server';
 import mongoose from 'mongoose';
-import { ENV } from '../config/env.js';
-import { User } from '../models/User.js';
-import { StudentProfile } from '../models/Profiles.js';
-import { Project, Task } from '../models/Project.js';
-import { Offer } from '../models/Placement.js';
+import { AddressInfo } from 'net';
 
-const API_URL = `http://localhost:${ENV.PORT}/api`;
 const results: { name: string; status: 'PASS' | 'FAIL'; error?: string }[] = [];
 
 async function test(name: string, fn: () => Promise<void>) {
@@ -15,26 +11,49 @@ async function test(name: string, fn: () => Promise<void>) {
     results.push({ name, status: 'PASS' });
     console.log(`✅ PASS: ${name}`);
   } catch (err: any) {
-    results.push({ name, status: 'FAIL', error: err.response?.data?.message || err.message });
-    console.error(`❌ FAIL: ${name} -`, err.response?.data?.message || err.message);
+    results.push({ name, status: 'FAIL', error: err.message });
+    console.error(`❌ FAIL: ${name} -`, err.message);
+  }
+}
+
+async function expectStatus(promise: Promise<any>, status: number) {
+  try {
+    const res = await promise;
+    throw new Error(`Expected request to fail with status ${status}, but it succeeded with status ${res.status}.`);
+  } catch (err: any) {
+    if (err.message.includes('Expected request to fail')) throw err;
+    if (err.response?.status !== status) {
+      throw new Error(`Expected status ${status}, got ${err.response?.status}`);
+    }
   }
 }
 
 async function runE2E() {
+  process.env.USE_MEMORY_DB = 'true';
+  process.env.PORT = '0';
+  
+  console.log('--- STARTING E2E CHECKS (MEMORY DB) ---');
+  const mongoServer = await MongoMemoryServer.create();
+  process.env.MONGODB_URI = mongoServer.getUri();
+
+  // Dynamically import to ensure ENV picks up overridden process.env
+  const { startServer } = await import('../index.js');
+  const { User } = await import('../models/User.js');
+  const { StudentProfile } = await import('../models/Profiles.js');
+  const { Project, Task, ProjectFile } = await import('../models/Project.js');
+  const { Offer } = await import('../models/Placement.js');
+  const { Conversation, Message } = await import('../models/Communication.js');
+
+  const server = await startServer();
+  const port = (server.address() as AddressInfo).port;
+  const API_URL = `http://localhost:${port}/api`;
+
   let adminId: any, student1Id: any, student2Id: any, mentorId: any;
   let student1ProfileId: any, student2ProfileId: any;
   let adminToken: any, student1Token: any, student2Token: any, mentorToken: any;
-  let projectId: any, task1Id: any, task2Id: any, offerId: any;
+  let projectId: any, task1Id: any, task2Id: any, offerId: any, conversationId: any;
 
   try {
-    console.log('--- STARTING E2E CHECKS ---');
-    await mongoose.connect(ENV.MONGODB_URI);
-
-    // 0. Clean up any leftover data from previous crashes
-    await User.deleteMany({ email: { $in: ['admin_e2e@test.com', 's1_e2e@test.com', 's2_e2e@test.com', 'mentor_e2e@test.com'] } });
-    await Project.deleteMany({ title: 'Proj 1' });
-    await Offer.deleteMany({ companyName: 'E2E Corp' });
-
     // 1. Setup specific users for tests
     const admin = await User.create({ name: 'E2E Admin', email: 'admin_e2e@test.com', password: 'password', role: 'admin', isActive: true });
     adminId = admin._id;
@@ -58,43 +77,50 @@ async function runE2E() {
     student2Token = (await axios.post(`${API_URL}/auth/login`, { email: 's2_e2e@test.com', password: 'password' })).data.token;
     mentorToken = (await axios.post(`${API_URL}/auth/login`, { email: 'mentor_e2e@test.com', password: 'password' })).data.token;
 
-    // 2. Setup project & offer
+    // 2. Setup project & offer & conversation
     const project1 = await Project.create({ title: 'Proj 1', description: 'desc', objective: 'obj', startDate: new Date(), endDate: new Date(), teamMembers: [student1Id], status: 'Planning' });
     projectId = project1._id;
 
     const offer = await Offer.create({ student: student1Id, companyName: 'E2E Corp', role: 'Dev', compensation: '10 LPA', status: 'Received' });
     offerId = offer._id;
     
+    const conv = await Conversation.create({ participants: [student1Id, mentorId], lastMessageAt: new Date() });
+    conversationId = conv._id;
+
     // RUN TESTS
 
     await test('Unauthenticated request gets 401', async () => {
-      await axios.get(`${API_URL}/projects`).catch(e => {
-        if (e.response?.status !== 401) throw new Error('Expected 401');
-      });
+      await expectStatus(axios.get(`${API_URL}/projects`), 401);
     });
 
     await test('Student gets 403 on admin routes', async () => {
-      await axios.post(`${API_URL}/students`, {}, { headers: { Authorization: `Bearer ${student1Token}` } }).catch(e => {
-        if (e.response?.status !== 403) throw new Error('Expected 403');
-      });
+      await expectStatus(axios.post(`${API_URL}/students`, {}, { headers: { Authorization: `Bearer ${student1Token}` } }), 403);
     });
 
-    await test('Student gets 403 on another student profile', async () => {
-      await axios.put(`${API_URL}/students/${student2ProfileId}`, { city: 'NY' }, { headers: { Authorization: `Bearer ${student1Token}` } }).catch(e => {
-        if (e.response?.status !== 403) throw new Error(`Expected 403, got ${e.response?.status}`);
-      });
+    await test('Student cannot read another student profile', async () => {
+      await expectStatus(axios.get(`${API_URL}/students/${student2Id}`, { headers: { Authorization: `Bearer ${student1Token}` } }), 403);
     });
 
-    await test('Student gets 403 on another student offer', async () => {
-      await axios.put(`${API_URL}/placement/offers/${offerId}`, { status: 'Accepted' }, { headers: { Authorization: `Bearer ${student2Token}` } }).catch(e => {
-        if (e.response?.status !== 403) throw new Error('Expected 403');
-      });
+    await test('Mentor cannot read unassigned student profile', async () => {
+      // mentor is not assigned to student1 or student2
+      await expectStatus(axios.get(`${API_URL}/students/${student1Id}`, { headers: { Authorization: `Bearer ${mentorToken}` } }), 403);
+    });
+
+    await test('Student gets 403 on another student profile update', async () => {
+      await expectStatus(axios.put(`${API_URL}/students/${student2ProfileId}`, { city: 'NY' }, { headers: { Authorization: `Bearer ${student1Token}` } }), 403);
     });
 
     await test('Mentor gets 403 on editing student profile', async () => {
-      await axios.put(`${API_URL}/students/${student1ProfileId}`, { city: 'NY' }, { headers: { Authorization: `Bearer ${mentorToken}` } }).catch(e => {
-        if (e.response?.status !== 403) throw new Error(`Expected 403, got ${e.response?.status}`);
-      });
+      await expectStatus(axios.put(`${API_URL}/students/${student1ProfileId}`, { city: 'NY' }, { headers: { Authorization: `Bearer ${mentorToken}` } }), 403);
+    });
+
+    await test('Student cannot update another student offer', async () => {
+      await expectStatus(axios.put(`${API_URL}/placement/offers/${offerId}`, { status: 'Accepted' }, { headers: { Authorization: `Bearer ${student2Token}` } }), 403);
+    });
+
+    await test('Student CAN set status on their own offer', async () => {
+      const res = await axios.put(`${API_URL}/placement/offers/${offerId}`, { status: 'Accepted' }, { headers: { Authorization: `Bearer ${student1Token}` } });
+      if (res.data.data.status !== 'Accepted') throw new Error('Status was not updated');
     });
 
     await test('Creating a task with sprintNumber works', async () => {
@@ -106,18 +132,82 @@ async function runE2E() {
       }, { headers: { Authorization: `Bearer ${student1Token}` } });
       task1Id = res.data.data._id;
       if (res.data.data.sprintNumber !== 3) throw new Error('sprintNumber mismatch');
+      if (res.data.data.title !== 'New Task') throw new Error('Title mismatch');
+    });
+
+    await test('Student cannot create tasks in project they are not a member of', async () => {
+      await expectStatus(axios.post(`${API_URL}/projects/tasks`, {
+        title: 'Task by Outsider',
+        project: projectId,
+        status: 'TODO'
+      }, { headers: { Authorization: `Bearer ${student2Token}` } }), 403);
+    });
+    
+    await test('Student cannot upload files to project they are not a member of', async () => {
+      await expectStatus(axios.post(`${API_URL}/projects/files`, {
+        projectId: projectId,
+        name: 'Malicious File',
+        fileUrl: 'http://test.com/file'
+      }, { headers: { Authorization: `Bearer ${student2Token}` } }), 403);
     });
 
     await test('Student gets 403 on another project task', async () => {
-      await axios.put(`${API_URL}/projects/tasks/${task1Id}`, { status: 'IN PROGRESS' }, { headers: { Authorization: `Bearer ${student2Token}` } }).catch(e => {
-        if (e.response?.status !== 403) throw new Error(`Expected 403, got ${e.response?.status}`);
-      });
+      await expectStatus(axios.put(`${API_URL}/projects/tasks/${task1Id}`, { status: 'IN PROGRESS' }, { headers: { Authorization: `Bearer ${student2Token}` } }), 403);
     });
 
-    await test('Moving task between Kanban columns works (IN PROGRESS, REVIEW)', async () => {
-      await axios.put(`${API_URL}/projects/tasks/${task1Id}`, { status: 'IN PROGRESS' }, { headers: { Authorization: `Bearer ${student1Token}` } });
-      await axios.put(`${API_URL}/projects/tasks/${task1Id}`, { status: 'REVIEW' }, { headers: { Authorization: `Bearer ${student1Token}` } });
-      await axios.put(`${API_URL}/projects/tasks/${task1Id}`, { status: 'COMPLETED' }, { headers: { Authorization: `Bearer ${student1Token}` } });
+    await test('Moving task between Kanban columns works', async () => {
+      let res = await axios.put(`${API_URL}/projects/tasks/${task1Id}`, { status: 'IN PROGRESS' }, { headers: { Authorization: `Bearer ${student1Token}` } });
+      if (res.data.data.status !== 'IN PROGRESS') throw new Error('Status not IN PROGRESS');
+      
+      res = await axios.put(`${API_URL}/projects/tasks/${task1Id}`, { status: 'REVIEW' }, { headers: { Authorization: `Bearer ${student1Token}` } });
+      if (res.data.data.status !== 'REVIEW') throw new Error('Status not REVIEW');
+    });
+
+    await test('Student cannot mark attendance for another student', async () => {
+      await expectStatus(axios.post(`${API_URL}/attendance`, {
+        studentId: student2Id,
+        status: 'Present',
+        checkInTime: '09:00 AM'
+      }, { headers: { Authorization: `Bearer ${student1Token}` } }), 403);
+    });
+
+    await test('Student self check-in uses today date (ignores date input)', async () => {
+      const pastDate = new Date();
+      pastDate.setDate(pastDate.getDate() - 5);
+      const res = await axios.post(`${API_URL}/attendance`, {
+        date: pastDate.toISOString(),
+        status: 'Present'
+      }, { headers: { Authorization: `Bearer ${student1Token}` } });
+      
+      const savedDate = new Date(res.data.data.date);
+      const today = new Date();
+      if (savedDate.getDate() !== today.getDate() || savedDate.getMonth() !== today.getMonth()) {
+        throw new Error(`Self check-in date was not today, got ${savedDate}`);
+      }
+    });
+
+    await test('Non-participant cannot read conversation', async () => {
+      await expectStatus(axios.get(`${API_URL}/communication/messages/${conversationId}`, { headers: { Authorization: `Bearer ${student2Token}` } }), 403);
+    });
+
+    await test('/admin/settings returns 403 for students and mentors', async () => {
+      await expectStatus(axios.get(`${API_URL}/admin/settings`, { headers: { Authorization: `Bearer ${student1Token}` } }), 403);
+      await expectStatus(axios.get(`${API_URL}/admin/settings`, { headers: { Authorization: `Bearer ${mentorToken}` } }), 403);
+      await expectStatus(axios.put(`${API_URL}/admin/settings`, {}, { headers: { Authorization: `Bearer ${student1Token}` } }), 403);
+    });
+    
+    await test('Settings PUT validates fields correctly', async () => {
+      // stipendBase as string should fail if strict requires number
+      await expectStatus(axios.put(`${API_URL}/admin/settings`, {
+        stipendBase: "invalid_string"
+      }, { headers: { Authorization: `Bearer ${adminToken}` } }), 400);
+
+      // Save correctly
+      const res = await axios.put(`${API_URL}/admin/settings`, {
+        stipendBase: 16500,
+        passingScore: 70
+      }, { headers: { Authorization: `Bearer ${adminToken}` } });
+      if (res.data.data.stipendBase !== 16500) throw new Error('stipendBase not saved');
     });
 
     // Generate table
@@ -131,21 +221,10 @@ async function runE2E() {
     console.error('E2E Crash:', err);
     process.exitCode = 1;
   } finally {
-    // Cleanup
-    if (adminId) await User.findByIdAndDelete(adminId);
-    if (student1Id) { await User.findByIdAndDelete(student1Id); await StudentProfile.findOneAndDelete({ user: student1Id }); }
-    if (student2Id) { await User.findByIdAndDelete(student2Id); await StudentProfile.findOneAndDelete({ user: student2Id }); }
-    if (mentorId) await User.findByIdAndDelete(mentorId);
-    if (projectId) await Project.findByIdAndDelete(projectId);
-    if (task1Id) await Task.findByIdAndDelete(task1Id);
-    if (task2Id) await Task.findByIdAndDelete(task2Id);
-    if (offerId) await Offer.findByIdAndDelete(offerId);
-    
-    // Fallback cleanup if variables weren't set
-    await User.deleteMany({ email: { $in: ['admin_e2e@test.com', 's1_e2e@test.com', 's2_e2e@test.com', 'mentor_e2e@test.com'] } });
-    await Project.deleteMany({ title: 'Proj 1' });
-    
+    // Teardown the memory server and express
+    server.close();
     await mongoose.disconnect();
+    await mongoServer.stop();
     
     if (process.exitCode === 1) process.exit(1);
   }

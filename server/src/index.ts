@@ -53,7 +53,7 @@ app.use('/api', routes);
 app.use(errorHandler);
 
 // Start Server & Connect Database
-const startServer = async () => {
+export const startServer = async () => {
   try {
     await connectDB();
     if (ENV.SEED_ON_START) {
@@ -83,12 +83,15 @@ const startServer = async () => {
 
     process.on('SIGTERM', shutdown);
     process.on('SIGINT', shutdown);
+    return server;
   } catch (error) {
     console.error('Fatal error starting server:', error);
     process.exit(1);
   }
 };
 
-startServer();
+if (process.env.USE_MEMORY_DB !== 'true') {
+  startServer();
+}
 
 export default app;

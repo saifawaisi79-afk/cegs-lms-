@@ -117,18 +117,35 @@ export const getTasks = async (req: Request, res: Response): Promise<void> => {
 
 export const createTask = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    const project = await Project.findById(req.body.project);
+    if (!project) {
+      res.status(404).json({ success: false, message: 'Project not found' });
+      return;
+    }
+
     if (req.user?.role === 'student') {
-      const project = await Project.findById(req.body.project);
-      if (!project || !project.teamMembers.includes(req.user._id)) {
+      if (!project.teamMembers.includes(req.user._id)) {
         res.status(403).json({ success: false, message: 'Forbidden: You are not in this project' });
+        return;
+      }
+      
+      if (req.body.assignedTo && !project.teamMembers.includes(req.body.assignedTo)) {
+        res.status(400).json({ success: false, message: 'assignedTo must be a member of the project' });
         return;
       }
     }
     
-    const task = await Task.create({
-      ...req.body,
-      assignedTo: req.body.assignedTo || req.user?._id,
-    });
+    const whitelist = ['title', 'description', 'project', 'priority', 'dueDate', 'sprintNumber', 'status', 'assignedTo'];
+    const taskData: any = {};
+    for (const f of whitelist) {
+      if (req.body[f] !== undefined) taskData[f] = req.body[f];
+    }
+    
+    if (!taskData.assignedTo) {
+      taskData.assignedTo = req.user?._id;
+    }
+
+    const task = await Task.create(taskData);
     res.status(201).json({ success: true, data: task });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });

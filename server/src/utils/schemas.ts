@@ -31,7 +31,7 @@ export const markAttendanceSchema = z.object({
   status: z.enum(['Present', 'Absent', 'Late', 'Excused']).optional(),
   remarks: z.string().optional(),
   checkInTime: z.string().optional(),
-}).passthrough();
+}).strict();
 
 export const updateTaskSchema = z.object({
   title: z.string().optional(),
@@ -42,7 +42,7 @@ export const updateTaskSchema = z.object({
   assignedTo: z.string().optional(),
   project: z.string().optional(),
   sprintNumber: z.number().optional(),
-}).passthrough();
+}).strict();
 
 export const createTaskSchema = z.object({
   title: z.string(),
@@ -53,7 +53,7 @@ export const createTaskSchema = z.object({
   dueDate: z.string().datetime().optional().or(z.date().optional()),
   status: z.enum(['TODO', 'IN PROGRESS', 'REVIEW', 'COMPLETED']).optional(),
   sprintNumber: z.number().optional(),
-}).passthrough();
+}).strict();
 
 export const updateProjectSchema = z.object({
   description: z.string().optional(),
@@ -77,3 +77,11 @@ export const resetPasswordSchema = z.object({
   token: z.string(),
   newPassword: z.string().min(6),
 }).passthrough();
+
+export const updateSettingsSchema = z.object({
+  orgName: z.string().optional(),
+  supportEmail: z.string().email().optional(),
+  stipendBase: z.number().optional(),
+  passingScore: z.number().min(0).max(100).optional(),
+  attendanceMin: z.number().min(0).max(100).optional(),
+}).strict();

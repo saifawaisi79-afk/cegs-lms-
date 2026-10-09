@@ -11,6 +11,7 @@ import { Certificate } from '../models/Certificate.js';
 import { StipendRecord } from '../models/Stipend.js';
 import { AuditLog } from '../models/AuditLog.js';
 import { Settings } from '../models/Settings.js';
+import { logAuditEvent } from '../utils/auditLogger.js';
 
 export const getAdminDashboardStats = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -220,15 +221,25 @@ export const getSettings = async (req: AuthRequest, res: Response): Promise<void
 
 export const updateSettings = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    const { updateSettingsSchema } = await import('../utils/schemas.js');
+    const validatedData = updateSettingsSchema.parse(req.body);
+
     let settings = await Settings.findOne();
     if (!settings) {
-      settings = await Settings.create(req.body);
+      settings = await Settings.create(validatedData);
     } else {
-      Object.assign(settings, req.body);
+      Object.assign(settings, validatedData);
       await settings.save();
     }
+    
+    await logAuditEvent(req, 'UPDATE_SETTINGS', 'SYSTEM', settings._id.toString(), validatedData);
+    
     res.status(200).json({ success: true, data: settings });
   } catch (error: any) {
+    if (error.name === 'ZodError') {
+      res.status(400).json({ success: false, message: error.errors });
+      return;
+    }
     res.status(500).json({ success: false, message: error.message });
   }
 };

@@ -12,6 +12,7 @@ export const SettingsPage: React.FC = () => {
   const [attendanceMin, setAttendanceMin] = useState('85');
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchSettings();
@@ -19,17 +20,19 @@ export const SettingsPage: React.FC = () => {
 
   const fetchSettings = async () => {
     try {
+      setError(null);
       const res = await api.get('/admin/settings');
       if (res.data?.success && res.data.data) {
         const s = res.data.data;
         if (s.orgName) setOrgName(s.orgName);
         if (s.supportEmail) setSupportEmail(s.supportEmail);
-        if (s.stipendBase) setStipendBase(s.stipendBase);
-        if (s.passingScore) setPassingScore(s.passingScore);
-        if (s.attendanceMin) setAttendanceMin(s.attendanceMin);
+        if (s.stipendBase) setStipendBase(String(s.stipendBase));
+        if (s.passingScore) setPassingScore(String(s.passingScore));
+        if (s.attendanceMin) setAttendanceMin(String(s.attendanceMin));
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching settings:', err);
+      setError(err.response?.data?.message || 'Failed to load settings');
     } finally {
       setLoading(false);
     }
@@ -38,17 +41,23 @@ export const SettingsPage: React.FC = () => {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      setError(null);
       await api.put('/admin/settings', {
         orgName,
         supportEmail,
-        stipendBase,
-        passingScore,
-        attendanceMin,
+        stipendBase: Number(stipendBase),
+        passingScore: Number(passingScore),
+        attendanceMin: Number(attendanceMin),
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error saving settings:', err);
+      if (Array.isArray(err.response?.data?.message)) {
+        setError('Validation error: ' + err.response.data.message.map((m: any) => m.message).join(', '));
+      } else {
+        setError(err.response?.data?.message || 'Failed to save settings');
+      }
     }
   };
 
@@ -68,6 +77,12 @@ export const SettingsPage: React.FC = () => {
           ) : undefined
         }
       />
+
+      {error && (
+        <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm font-semibold">
+          {error}
+        </div>
+      )}
 
       <form onSubmit={handleSave} className="space-y-6">
         {/* Organization Information */}

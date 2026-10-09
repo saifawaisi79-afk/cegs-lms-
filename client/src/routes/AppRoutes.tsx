@@ -79,7 +79,6 @@ export const AppRoutes: React.FC = () => {
           <Route path="/messages" element={<MessagingPage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/profile" element={<StudentProfilePage />} />
-          <Route path="/settings" element={<SettingsPage />} />
 
           {/* Mentor Routes */}
           <Route element={<ProtectedRoute allowedRoles={['mentor', 'admin']} />}>
