@@ -1,8 +1,7 @@
 import mongoose from 'mongoose';
-import { MongoMemoryServer } from 'mongodb-memory-server';
 import { ENV } from './env.js';
 
-let mongod: MongoMemoryServer | null = null;
+let mongod: any = null;
 
 export const connectDB = async (): Promise<void> => {
   mongoose.connection.on('connected', () => console.log('🟢 MongoDB connection established.'));
@@ -12,6 +11,7 @@ export const connectDB = async (): Promise<void> => {
   try {
     if (ENV.USE_MEMORY_DB) {
       console.log('⚡ Initializing Embedded MongoDB (MongoMemoryServer) for zero-setup execution...');
+      const { MongoMemoryServer } = await import('mongodb-memory-server');
       mongod = await MongoMemoryServer.create();
       const uri = mongod.getUri();
       await mongoose.connect(uri);
