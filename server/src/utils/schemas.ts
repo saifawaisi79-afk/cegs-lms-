@@ -7,7 +7,7 @@ export const updateOfferSchema = z.object({
   ctc: z.number().optional(),
   offerDate: z.string().datetime().optional().or(z.date().optional()),
   student: z.string().optional(),
-}).strict();
+}).passthrough();
 
 export const updateStudentSchema = z.object({
   phone: z.string().optional(),
@@ -31,27 +31,29 @@ export const markAttendanceSchema = z.object({
   status: z.enum(['Present', 'Absent', 'Late', 'Excused']).optional(),
   remarks: z.string().optional(),
   checkInTime: z.string().optional(),
-}).strict();
+}).passthrough();
 
 export const updateTaskSchema = z.object({
   title: z.string().optional(),
   description: z.string().optional(),
-  status: z.enum(['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'COMPLETED']).optional(),
-  priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
+  status: z.enum(['TODO', 'IN PROGRESS', 'REVIEW', 'COMPLETED']).optional(),
+  priority: z.enum(['Low', 'Medium', 'High', 'Critical']).optional(),
   dueDate: z.string().datetime().optional().or(z.date().optional()),
   assignedTo: z.string().optional(),
   project: z.string().optional(),
-}).strict();
+  sprintNumber: z.number().optional(),
+}).passthrough();
 
 export const createTaskSchema = z.object({
   title: z.string(),
   project: z.string(),
   assignedTo: z.string().optional(),
   description: z.string().optional(),
-  priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
+  priority: z.enum(['Low', 'Medium', 'High', 'Critical']).optional(),
   dueDate: z.string().datetime().optional().or(z.date().optional()),
-  status: z.enum(['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'COMPLETED']).optional(),
-}).strict();
+  status: z.enum(['TODO', 'IN PROGRESS', 'REVIEW', 'COMPLETED']).optional(),
+  sprintNumber: z.number().optional(),
+}).passthrough();
 
 export const updateProjectSchema = z.object({
   description: z.string().optional(),
@@ -65,13 +67,13 @@ export const uploadProjectFileSchema = z.object({
   fileUrl: z.string(),
   fileType: z.string().optional(),
   sizeBytes: z.number().optional(),
-}).strict();
+}).passthrough();
 
 export const forgotPasswordSchema = z.object({
   email: z.string().email(),
-}).strict();
+}).passthrough();
 
 export const resetPasswordSchema = z.object({
   token: z.string(),
   newPassword: z.string().min(6),
-}).strict();
+}).passthrough();

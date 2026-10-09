@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Calendar,
@@ -38,6 +38,7 @@ import {
 import { PageHeader } from '../../components/ui/PageHeader.js';
 import { StatusBadge } from '../../components/ui/StatusBadge.js';
 import { useAuthStore } from '../../store/authStore.js';
+import api from '../../services/api.js';
 
 interface WeekDetail {
   weekNum: number;
@@ -82,6 +83,21 @@ export const MonthsExplorerPage: React.FC = () => {
   const [selectedMonth, setSelectedMonth] = useState<number>(currentActiveMonth);
   const [activeStageStep, setActiveStageStep] = useState<number>(3);
   const [expandedWeek, setExpandedWeek] = useState<number | null>(null);
+  const [dbModules, setDbModules] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchCurriculum = async () => {
+      try {
+        const res = await api.get('/curriculum/modules');
+        if (res.data?.success) {
+          setDbModules(res.data.data);
+        }
+      } catch (err) {
+        console.error('Error fetching modules:', err);
+      }
+    };
+    fetchCurriculum();
+  }, []);
 
   // The Signature 10-Stage Continuous Learning Engine
   const pipelineStages = [
@@ -97,7 +113,7 @@ export const MonthsExplorerPage: React.FC = () => {
     { num: 10, name: 'CERTIFY', label: 'Verifiable Credential', desc: 'Cryptographically authenticated Job-Ready Industry Diploma.' },
   ];
 
-  const months: MonthData[] = [
+  const baseMonths: MonthData[] = [
     {
       monthNum: 1,
       eyebrow: 'MONTH 01 · FOUNDATIONS & BASELINE DIAGNOSTICS',
@@ -477,6 +493,14 @@ export const MonthsExplorerPage: React.FC = () => {
       ],
     },
   ];
+
+  const months = baseMonths.map(m => {
+    const match = dbModules.find(d => d.monthNumber === m.monthNum);
+    if (match) {
+      return { ...m, title: match.title, subtitle: match.description || m.subtitle };
+    }
+    return m;
+  });
 
   const activeMonthData = months.find((m) => m.monthNum === selectedMonth) || months[2];
 

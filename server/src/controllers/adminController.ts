@@ -10,6 +10,7 @@ import { Interview, Offer } from '../models/Placement.js';
 import { Certificate } from '../models/Certificate.js';
 import { StipendRecord } from '../models/Stipend.js';
 import { AuditLog } from '../models/AuditLog.js';
+import { Settings } from '../models/Settings.js';
 
 export const getAdminDashboardStats = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -168,13 +169,28 @@ export const globalSearch = async (req: AuthRequest, res: Response): Promise<voi
       students = await User.find({ _id: req.user?._id, role: 'student', $or: [{ name: regex }] }).select('name avatar').limit(5);
     }
 
-    const [lessons, assessments, projects, interviews, certificates] = await Promise.all([
+    const [lessons, assessments] = await Promise.all([
       Lesson.find({ $or: [{ title: regex }, { description: regex }] }).select('title description module order').limit(5),
       Assessment.find({ $or: [{ title: regex }, { description: regex }] }).select('title weekNumber monthNumber type').limit(5),
-      Project.find({ $or: [{ title: regex }, { technologies: regex }] }).select('title technologies status').limit(5),
-      Interview.find({ $or: [{ companyName: regex }, { role: regex }] }).select('companyName role scheduledAt status').limit(5),
-      Certificate.find({ $or: [{ certificateId: regex }, { candidateName: regex }] }).select('certificateId candidateName grade status').limit(5),
     ]);
+
+    let projects = [];
+    let interviews = [];
+    let certificates = [];
+
+    if (req.user?.role === 'admin' || req.user?.role === 'mentor') {
+      [projects, interviews, certificates] = await Promise.all([
+        Project.find({ $or: [{ title: regex }, { technologies: regex }] }).select('title technologies status').limit(5),
+        Interview.find({ $or: [{ companyName: regex }, { role: regex }] }).select('companyName role scheduledAt status').limit(5),
+        Certificate.find({ $or: [{ certificateId: regex }, { candidateName: regex }] }).select('certificateId candidateName grade status').limit(5),
+      ]);
+    } else {
+      [projects, interviews, certificates] = await Promise.all([
+        Project.find({ teamMembers: req.user?._id, $or: [{ title: regex }, { technologies: regex }] }).select('title technologies status').limit(5),
+        Interview.find({ candidate: req.user?._id, $or: [{ companyName: regex }, { role: regex }] }).select('companyName role scheduledAt status').limit(5),
+        Certificate.find({ student: req.user?._id, $or: [{ certificateId: regex }, { candidateName: regex }] }).select('certificateId candidateName grade status').limit(5),
+      ]);
+    }
 
     res.status(200).json({
       success: true,
@@ -187,6 +203,31 @@ export const globalSearch = async (req: AuthRequest, res: Response): Promise<voi
         certificates,
       },
     });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getSettings = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    let settings = await Settings.findOne();
+    if (!settings) settings = await Settings.create({});
+    res.status(200).json({ success: true, data: settings });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const updateSettings = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    let settings = await Settings.findOne();
+    if (!settings) {
+      settings = await Settings.create(req.body);
+    } else {
+      Object.assign(settings, req.body);
+      await settings.save();
+    }
+    res.status(200).json({ success: true, data: settings });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }

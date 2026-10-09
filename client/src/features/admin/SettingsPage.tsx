@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Settings, Save, Building, Shield, Bell, CheckCircle, Sliders } from 'lucide-react';
 import { PageHeader } from '../../components/ui/PageHeader.js';
 import { StatusBadge } from '../../components/ui/StatusBadge.js';
+import api from '../../services/api.js';
 
 export const SettingsPage: React.FC = () => {
   const [orgName, setOrgName] = useState('Career Expert Global Solutions');
@@ -10,11 +11,45 @@ export const SettingsPage: React.FC = () => {
   const [passingScore, setPassingScore] = useState('70');
   const [attendanceMin, setAttendanceMin] = useState('85');
   const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const handleSave = (e: React.FormEvent) => {
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  const fetchSettings = async () => {
+    try {
+      const res = await api.get('/admin/settings');
+      if (res.data?.success && res.data.data) {
+        const s = res.data.data;
+        if (s.orgName) setOrgName(s.orgName);
+        if (s.supportEmail) setSupportEmail(s.supportEmail);
+        if (s.stipendBase) setStipendBase(s.stipendBase);
+        if (s.passingScore) setPassingScore(s.passingScore);
+        if (s.attendanceMin) setAttendanceMin(s.attendanceMin);
+      }
+    } catch (err) {
+      console.error('Error fetching settings:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    try {
+      await api.put('/admin/settings', {
+        orgName,
+        supportEmail,
+        stipendBase,
+        passingScore,
+        attendanceMin,
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err) {
+      console.error('Error saving settings:', err);
+    }
   };
 
   return (

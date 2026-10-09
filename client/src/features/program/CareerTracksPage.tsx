@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Target,
@@ -16,6 +16,7 @@ import {
 import { PageHeader } from '../../components/ui/PageHeader.js';
 import { StatusBadge } from '../../components/ui/StatusBadge.js';
 import { useAuthStore } from '../../store/authStore.js';
+import api from '../../services/api.js';
 
 interface TrackItem {
   number: string;
@@ -37,8 +38,23 @@ export const CareerTracksPage: React.FC = () => {
     'Full Stack Development';
 
   const [selectedTrack, setSelectedTrack] = useState<string>(studentTrack);
+  const [dbTracks, setDbTracks] = useState<any[]>([]);
 
-  const tracks: TrackItem[] = [
+  useEffect(() => {
+    const fetchTracks = async () => {
+      try {
+        const res = await api.get('/curriculum/tracks');
+        if (res.data?.success) {
+          setDbTracks(res.data.data);
+        }
+      } catch (err) {
+        console.error('Error fetching tracks:', err);
+      }
+    };
+    fetchTracks();
+  }, []);
+
+  const baseTracks: TrackItem[] = [
     {
       number: '01',
       name: 'FULL STACK DEVELOPMENT',
@@ -95,6 +111,18 @@ export const CareerTracksPage: React.FC = () => {
       icon: Cloud,
     },
   ];
+  const displayTracks = baseTracks.map(bt => {
+    const dbMatch = dbTracks.find(dt => dt.name.toLowerCase().includes(bt.name.toLowerCase()) || bt.name.toLowerCase().includes(dt.name.toLowerCase()));
+    if (dbMatch) {
+      return {
+        ...bt,
+        name: dbMatch.name,
+        tagline: dbMatch.description || bt.tagline,
+        tools: dbMatch.technologies?.length > 0 ? dbMatch.technologies : bt.tools
+      };
+    }
+    return bt;
+  });
 
   return (
     <div className="space-y-8 animate-in fade-in duration-200">
@@ -122,7 +150,7 @@ export const CareerTracksPage: React.FC = () => {
 
       {/* 5 EDITORIAL TRACK CARDS (Section 24 Specification) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {tracks.map((track) => {
+        {displayTracks.map((track) => {
           const Icon = track.icon;
           const isEnrolled = track.name.toLowerCase() === studentTrack.toLowerCase();
 
@@ -171,7 +199,7 @@ export const CareerTracksPage: React.FC = () => {
                     Primary Stack & Tools
                   </span>
                   <div className="flex flex-wrap gap-1.5">
-                    {track.tools.map((t, idx) => (
+                    {track.tools.map((t: string, idx: number) => (
                       <span
                         key={idx}
                         className="px-2.5 py-1 rounded-md text-[11px] font-semibold bg-slate-50 text-slate-800 border border-slate-200"

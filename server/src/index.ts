@@ -11,6 +11,10 @@ import { seedDatabase } from './scripts/seed.js';
 
 const app = express();
 
+if (ENV.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
 // Security middlewares
 app.use(
   helmet({

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Users,
@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { PageHeader } from '../../components/ui/PageHeader.js';
 import { StatusBadge } from '../../components/ui/StatusBadge.js';
+import api from '../../services/api.js';
 
 export const IndustryExposurePage: React.FC = () => {
   const navigate = useNavigate();
@@ -31,6 +32,22 @@ export const IndustryExposurePage: React.FC = () => {
     { label: 'Mock Interview Loops', value: '4 Rounds', sub: 'Technical & HR Rubrics' },
     { label: 'Corporate Exposure', value: '100%', sub: 'Production Workflow Parity' },
   ];
+
+  const [durationMonths, setDurationMonths] = useState<number>(6);
+
+  useEffect(() => {
+    const fetchPrograms = async () => {
+      try {
+        const res = await api.get('/curriculum/programs');
+        if (res.data?.success && res.data.data.length > 0) {
+          setDurationMonths(res.data.data[0].durationMonths || 6);
+        }
+      } catch (err) {
+        console.error('Error fetching programs:', err);
+      }
+    };
+    fetchPrograms();
+  }, []);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-200">
@@ -46,7 +63,7 @@ export const IndustryExposurePage: React.FC = () => {
               onClick={() => navigate('/months')}
               className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition border border-slate-200 shadow-sm flex items-center gap-1.5"
             >
-              <span>6-Month Roadmap</span>
+              <span>{durationMonths}-Month Roadmap</span>
             </button>
             <button
               onClick={() => navigate('/career-tracks')}

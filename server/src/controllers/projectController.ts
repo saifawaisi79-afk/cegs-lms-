@@ -153,7 +153,8 @@ export const updateTask = async (req: AuthRequest, res: Response): Promise<void>
 
     let updateData: any = {};
     if (req.user?.role === 'student') {
-      const allowed = ['title', 'description', 'status', 'priority', 'dueDate', 'assignedTo'];
+      const allowed = ['title', 'description', 'status', 'priority', 'dueDate', 'sprintNumber'];
+
       for (const f of allowed) {
         if (req.body[f] !== undefined) updateData[f] = req.body[f];
       }

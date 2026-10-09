@@ -25,6 +25,7 @@ import api from '../../services/api.js';
 import { IProject, ITask } from '../../types/index.js';
 import { PageHeader } from '../../components/ui/PageHeader.js';
 import { StatusBadge } from '../../components/ui/StatusBadge.js';
+import { EmptyState } from '../../components/ui/EmptyState.js';
 import { ProgressBar } from '../../components/ui/ProgressBar.js';
 
 export const ProjectsPage: React.FC = () => {
@@ -32,6 +33,7 @@ export const ProjectsPage: React.FC = () => {
   const [tasks, setTasks] = useState<ITask[]>([]);
   const [selectedProject, setSelectedProject] = useState<IProject | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'sprints' | 'files' | 'feedback'>('overview');
   const [showNewTaskModal, setShowNewTaskModal] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState('');
@@ -45,6 +47,7 @@ export const ProjectsPage: React.FC = () => {
   const fetchProjectData = async () => {
     try {
       setLoading(true);
+      setError(null);
       const projRes = await api.get('/projects');
       if (projRes.data?.success && projRes.data.data.length > 0) {
         setProjects(projRes.data.data);
@@ -58,6 +61,7 @@ export const ProjectsPage: React.FC = () => {
       }
     } catch (err) {
       console.error('Error fetching project data:', err);
+      setError('Failed to load project data.');
     } finally {
       setLoading(false);
     }
@@ -120,6 +124,17 @@ export const ProjectsPage: React.FC = () => {
         return 'neutral' as const;
     }
   };
+
+  if (error && projects.length === 0) {
+    return (
+      <EmptyState
+        icon={AlertCircle}
+        title="Failed to Load Projects"
+        description={error}
+        action={{ label: 'Retry', onClick: fetchProjectData }}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">

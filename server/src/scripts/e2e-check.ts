@@ -3,117 +3,151 @@ import mongoose from 'mongoose';
 import { ENV } from '../config/env.js';
 import { User } from '../models/User.js';
 import { StudentProfile } from '../models/Profiles.js';
+import { Project, Task } from '../models/Project.js';
+import { Offer } from '../models/Placement.js';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = `http://localhost:${ENV.PORT}/api`;
+const results: { name: string; status: 'PASS' | 'FAIL'; error?: string }[] = [];
+
+async function test(name: string, fn: () => Promise<void>) {
+  try {
+    await fn();
+    results.push({ name, status: 'PASS' });
+    console.log(`✅ PASS: ${name}`);
+  } catch (err: any) {
+    results.push({ name, status: 'FAIL', error: err.response?.data?.message || err.message });
+    console.error(`❌ FAIL: ${name} -`, err.response?.data?.message || err.message);
+  }
+}
 
 async function runE2E() {
+  let adminId: any, student1Id: any, student2Id: any, mentorId: any;
+  let student1ProfileId: any, student2ProfileId: any;
+  let adminToken: any, student1Token: any, student2Token: any, mentorToken: any;
+  let projectId: any, task1Id: any, task2Id: any, offerId: any;
+
   try {
     console.log('--- STARTING E2E CHECKS ---');
-    
-    // Connect DB
     await mongoose.connect(ENV.MONGODB_URI);
-    console.log('Connected to DB');
 
-    // Create Admin
-    let admin = await User.findOne({ email: 'e2e_admin@example.com' });
-    if (!admin) {
-      admin = await User.create({
-        name: 'E2E Admin',
-        email: 'e2e_admin@example.com',
-        password: 'admin_password_123',
-        role: 'admin',
-        isActive: true,
+    // 0. Clean up any leftover data from previous crashes
+    await User.deleteMany({ email: { $in: ['admin_e2e@test.com', 's1_e2e@test.com', 's2_e2e@test.com', 'mentor_e2e@test.com'] } });
+    await Project.deleteMany({ title: 'Proj 1' });
+    await Offer.deleteMany({ companyName: 'E2E Corp' });
+
+    // 1. Setup specific users for tests
+    const admin = await User.create({ name: 'E2E Admin', email: 'admin_e2e@test.com', password: 'password', role: 'admin', isActive: true });
+    adminId = admin._id;
+    
+    const student1 = await User.create({ name: 'E2E Student 1', email: 's1_e2e@test.com', password: 'password', role: 'student', isActive: true });
+    student1Id = student1._id;
+    const sp1 = await StudentProfile.create({ user: student1Id, phone: '123' });
+    student1ProfileId = sp1._id;
+
+    const student2 = await User.create({ name: 'E2E Student 2', email: 's2_e2e@test.com', password: 'password', role: 'student', isActive: true });
+    student2Id = student2._id;
+    const sp2 = await StudentProfile.create({ user: student2Id, phone: '456' });
+    student2ProfileId = sp2._id;
+
+    const mentor = await User.create({ name: 'E2E Mentor', email: 'mentor_e2e@test.com', password: 'password', role: 'mentor', isActive: true });
+    mentorId = mentor._id;
+
+    // Login users
+    adminToken = (await axios.post(`${API_URL}/auth/login`, { email: 'admin_e2e@test.com', password: 'password' })).data.token;
+    student1Token = (await axios.post(`${API_URL}/auth/login`, { email: 's1_e2e@test.com', password: 'password' })).data.token;
+    student2Token = (await axios.post(`${API_URL}/auth/login`, { email: 's2_e2e@test.com', password: 'password' })).data.token;
+    mentorToken = (await axios.post(`${API_URL}/auth/login`, { email: 'mentor_e2e@test.com', password: 'password' })).data.token;
+
+    // 2. Setup project & offer
+    const project1 = await Project.create({ title: 'Proj 1', description: 'desc', objective: 'obj', startDate: new Date(), endDate: new Date(), teamMembers: [student1Id], status: 'Planning' });
+    projectId = project1._id;
+
+    const offer = await Offer.create({ student: student1Id, companyName: 'E2E Corp', role: 'Dev', compensation: '10 LPA', status: 'Received' });
+    offerId = offer._id;
+    
+    // RUN TESTS
+
+    await test('Unauthenticated request gets 401', async () => {
+      await axios.get(`${API_URL}/projects`).catch(e => {
+        if (e.response?.status !== 401) throw new Error('Expected 401');
       });
-    } else {
-      admin.password = 'admin_password_123';
-      await admin.save();
-    }
+    });
 
-    // Create Student
-    let student = await User.findOne({ email: 'e2e_student@example.com' });
-    if (!student) {
-      student = await User.create({
-        name: 'E2E Student',
-        email: 'e2e_student@example.com',
-        password: 'student_password_123',
-        role: 'student',
-        isActive: true,
+    await test('Student gets 403 on admin routes', async () => {
+      await axios.post(`${API_URL}/students`, {}, { headers: { Authorization: `Bearer ${student1Token}` } }).catch(e => {
+        if (e.response?.status !== 403) throw new Error('Expected 403');
       });
-    } else {
-      student.password = 'student_password_123';
-      await student.save();
-    }
-
-    // 1. Login as Admin
-    console.log('1. Logging in as Admin...');
-    const adminRes = await axios.post(`${API_URL}/auth/login`, {
-      email: 'e2e_admin@example.com',
-      password: 'admin_password_123',
     });
-    const adminToken = adminRes.data.token;
-    console.log('Admin login successful!');
 
-    // 2. Login as Student
-    console.log('2. Logging in as Student...');
-    const studentRes = await axios.post(`${API_URL}/auth/login`, {
-      email: 'e2e_student@example.com',
-      password: 'student_password_123',
+    await test('Student gets 403 on another student profile', async () => {
+      await axios.put(`${API_URL}/students/${student2ProfileId}`, { city: 'NY' }, { headers: { Authorization: `Bearer ${student1Token}` } }).catch(e => {
+        if (e.response?.status !== 403) throw new Error(`Expected 403, got ${e.response?.status}`);
+      });
     });
-    const studentToken = studentRes.data.token;
-    console.log('Student login successful!');
 
-    // 3. Creating a project (as admin) to add a task to
-    console.log('Creating a project as Admin...');
-    const newProj = await axios.post(
-      `${API_URL}/projects`,
-      {
-        title: 'E2E Test Project',
-        description: 'E2E project desc',
-        objective: 'Test objective',
-        status: 'Planning',
-        startDate: new Date().toISOString(),
-        endDate: new Date(Date.now() + 86400000 * 30).toISOString(),
-        clientOrCompany: 'Internal',
-        technologies: ['Node.js'],
-        teamMembers: [studentRes.data.user.id],
-      },
-      { headers: { Authorization: `Bearer ${adminToken}` } }
-    );
-    let projectId = newProj.data.data._id;
-    console.log('Created new project:', projectId);
+    await test('Student gets 403 on another student offer', async () => {
+      await axios.put(`${API_URL}/placement/offers/${offerId}`, { status: 'Accepted' }, { headers: { Authorization: `Bearer ${student2Token}` } }).catch(e => {
+        if (e.response?.status !== 403) throw new Error('Expected 403');
+      });
+    });
 
-    // 4. Create a task (as student)
-    console.log('4. Creating a task as Student...');
-    const taskRes = await axios.post(
-      `${API_URL}/projects/tasks`,
-      {
-        title: 'E2E Test Task',
+    await test('Mentor gets 403 on editing student profile', async () => {
+      await axios.put(`${API_URL}/students/${student1ProfileId}`, { city: 'NY' }, { headers: { Authorization: `Bearer ${mentorToken}` } }).catch(e => {
+        if (e.response?.status !== 403) throw new Error(`Expected 403, got ${e.response?.status}`);
+      });
+    });
+
+    await test('Creating a task with sprintNumber works', async () => {
+      const res = await axios.post(`${API_URL}/projects/tasks`, {
+        title: 'New Task',
         project: projectId,
-        description: 'Test task description',
-        status: 'TODO',
-      },
-      { headers: { Authorization: `Bearer ${studentToken}` } }
-    );
-    console.log('Task created successfully!', taskRes.data.data._id);
-
-    // 5. Viewing attendance
-    console.log('5. Viewing attendance as Student...');
-    const attendanceRes = await axios.get(`${API_URL}/attendance/me`, {
-      headers: { Authorization: `Bearer ${studentToken}` },
+        sprintNumber: 3,
+        status: 'TODO'
+      }, { headers: { Authorization: `Bearer ${student1Token}` } });
+      task1Id = res.data.data._id;
+      if (res.data.data.sprintNumber !== 3) throw new Error('sprintNumber mismatch');
     });
-    console.log('Attendance viewed successfully! Records count:', attendanceRes.data.data.records.length);
 
-    console.log('--- ALL E2E CHECKS PASSED ---');
+    await test('Student gets 403 on another project task', async () => {
+      await axios.put(`${API_URL}/projects/tasks/${task1Id}`, { status: 'IN PROGRESS' }, { headers: { Authorization: `Bearer ${student2Token}` } }).catch(e => {
+        if (e.response?.status !== 403) throw new Error(`Expected 403, got ${e.response?.status}`);
+      });
+    });
+
+    await test('Moving task between Kanban columns works (IN PROGRESS, REVIEW)', async () => {
+      await axios.put(`${API_URL}/projects/tasks/${task1Id}`, { status: 'IN PROGRESS' }, { headers: { Authorization: `Bearer ${student1Token}` } });
+      await axios.put(`${API_URL}/projects/tasks/${task1Id}`, { status: 'REVIEW' }, { headers: { Authorization: `Bearer ${student1Token}` } });
+      await axios.put(`${API_URL}/projects/tasks/${task1Id}`, { status: 'COMPLETED' }, { headers: { Authorization: `Bearer ${student1Token}` } });
+    });
+
+    // Generate table
+    console.log('\n--- TEST RESULTS ---');
+    console.table(results);
+
+    const failures = results.filter(r => r.status === 'FAIL');
+    if (failures.length > 0) process.exitCode = 1;
+
   } catch (err: any) {
-    console.error('--- E2E CHECK FAILED ---');
-    if (err.response) {
-      console.error('Response Error:', err.response.status, err.response.data);
-    } else {
-      console.error(err.message);
-    }
-    process.exit(1);
+    console.error('E2E Crash:', err);
+    process.exitCode = 1;
   } finally {
+    // Cleanup
+    if (adminId) await User.findByIdAndDelete(adminId);
+    if (student1Id) { await User.findByIdAndDelete(student1Id); await StudentProfile.findOneAndDelete({ user: student1Id }); }
+    if (student2Id) { await User.findByIdAndDelete(student2Id); await StudentProfile.findOneAndDelete({ user: student2Id }); }
+    if (mentorId) await User.findByIdAndDelete(mentorId);
+    if (projectId) await Project.findByIdAndDelete(projectId);
+    if (task1Id) await Task.findByIdAndDelete(task1Id);
+    if (task2Id) await Task.findByIdAndDelete(task2Id);
+    if (offerId) await Offer.findByIdAndDelete(offerId);
+    
+    // Fallback cleanup if variables weren't set
+    await User.deleteMany({ email: { $in: ['admin_e2e@test.com', 's1_e2e@test.com', 's2_e2e@test.com', 'mentor_e2e@test.com'] } });
+    await Project.deleteMany({ title: 'Proj 1' });
+    
     await mongoose.disconnect();
+    
+    if (process.exitCode === 1) process.exit(1);
   }
 }
 

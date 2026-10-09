@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import mongoose from 'mongoose';
 import authRoutes from './authRoutes.js';
 import studentRoutes from './studentRoutes.js';
 import curriculumRoutes from './curriculumRoutes.js';
@@ -33,7 +34,15 @@ router.use('/admin', adminRoutes);
 
 // Health check endpoint
 router.get('/health', (req, res) => {
-  res.status(200).send('healthy');
+  const isConnected = mongoose.connection.readyState === 1;
+  const status = isConnected ? 'healthy' : 'error';
+  const statusCode = isConnected ? 200 : 503;
+
+  res.status(statusCode).json({
+    status,
+    timestamp: new Date().toISOString(),
+    database: isConnected ? 'connected' : 'disconnected',
+  });
 });
 
 export default router;

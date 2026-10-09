@@ -4,6 +4,8 @@ import {
   getAuditLogs,
   getReports,
   globalSearch,
+  getSettings,
+  updateSettings,
 } from '../controllers/adminController.js';
 import {
   getAllPaymentsAdmin,
@@ -29,6 +31,10 @@ router.get('/search', globalSearch);
 router.get('/dashboard-stats', authorize('admin'), getAdminDashboardStats);
 router.get('/audit-logs', authorize('admin'), getAuditLogs);
 router.get('/reports', authorize('admin'), getReports);
+
+// Settings Endpoints
+router.get('/settings', authorize('admin'), getSettings);
+router.put('/settings', authorize('admin'), updateSettings);
 
 // Admin Payment Management Endpoints
 router.get('/payments', authorize('admin'), getAllPaymentsAdmin);

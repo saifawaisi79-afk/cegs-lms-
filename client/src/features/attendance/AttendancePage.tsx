@@ -18,6 +18,7 @@ import { IAttendance } from '../../types/index.js';
 import { PageHeader } from '../../components/ui/PageHeader.js';
 import { StatCard } from '../../components/ui/StatCard.js';
 import { StatusBadge } from '../../components/ui/StatusBadge.js';
+import { EmptyState } from '../../components/ui/EmptyState.js';
 import { ProgressBar } from '../../components/ui/ProgressBar.js';
 
 export const AttendancePage: React.FC = () => {
@@ -33,6 +34,7 @@ export const AttendancePage: React.FC = () => {
   } | null>(null);
 
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [checkingIn, setCheckingIn] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [selectedMonth, setSelectedMonth] = useState<string>('October 2026');
@@ -44,6 +46,7 @@ export const AttendancePage: React.FC = () => {
   const fetchAttendance = async () => {
     try {
       setLoading(true);
+      setError(null);
       const res = await api.get('/attendance/me');
       if (res.data?.success) {
         setData(res.data.data);
@@ -60,6 +63,7 @@ export const AttendancePage: React.FC = () => {
         todayStatus: 'Pending',
         todayCheckInTime: '',
       });
+      setError('Failed to load attendance data.');
     } finally {
       setLoading(false);
     }
@@ -107,6 +111,17 @@ export const AttendancePage: React.FC = () => {
     if (filterStatus === 'all') return true;
     return r.status.toLowerCase() === filterStatus.toLowerCase();
   }) || [];
+
+  if (error && !data?.records?.length) {
+    return (
+      <EmptyState
+        icon={AlertCircle}
+        title="Failed to Load"
+        description={error}
+        action={{ label: 'Retry', onClick: fetchAttendance }}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-200">
