@@ -23,6 +23,7 @@ import { PageHeader } from '../../components/ui/PageHeader.js';
 import { StatCard } from '../../components/ui/StatCard.js';
 import { StatusBadge } from '../../components/ui/StatusBadge.js';
 import { ProgressBar } from '../../components/ui/ProgressBar.js';
+import { EmptyState } from '../../components/ui/EmptyState.js';
 
 export const MentorDashboard: React.FC = () => {
   const { user } = useAuthStore();
@@ -38,6 +39,7 @@ export const MentorDashboard: React.FC = () => {
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [newNote, setNewNote] = useState('');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     fetchDashboard();
@@ -46,6 +48,7 @@ export const MentorDashboard: React.FC = () => {
   const fetchDashboard = async () => {
     try {
       setLoading(true);
+      setError(false);
       const res = await api.get('/mentorship/mentor/dashboard');
       if (res.data?.success) {
         const d = res.data.data;
@@ -59,21 +62,8 @@ export const MentorDashboard: React.FC = () => {
       }
     } catch (err) {
       console.error('Error fetching mentor dashboard:', err);
-      // Fallback to students list
-      try {
-        const fallbackRes = await api.get('/students');
-        if (fallbackRes.data?.success) {
-          setCandidates(fallbackRes.data.data);
-          setMetrics({
-            assignedScholarsCount: fallbackRes.data.data.length,
-            todaySessionsCount: 1,
-            pendingAssessmentsCount: 2,
-            activeProjectsCount: 1,
-          });
-        }
-      } catch (e) {
-        console.error(e);
-      }
+      setError(true);
+      setCandidates([]);
     } finally {
       setLoading(false);
     }
@@ -197,8 +187,30 @@ export const MentorDashboard: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {candidates.map((c) => (
-                <tr key={c._id} className="hover:bg-slate-50/70 transition">
+              {error ? (
+                <tr>
+                  <td colSpan={7}>
+                    <EmptyState
+                      icon={AlertCircle}
+                      title="Connection Error"
+                      description="Failed to load your mentor dashboard."
+                      action={{ label: 'Retry', onClick: fetchDashboard }}
+                    />
+                  </td>
+                </tr>
+              ) : candidates.length === 0 && !loading ? (
+                <tr>
+                  <td colSpan={7}>
+                    <EmptyState
+                      icon={Users}
+                      title="No Candidates Assigned"
+                      description="You currently have no candidates assigned to your cohort."
+                    />
+                  </td>
+                </tr>
+              ) : (
+                candidates.map((c) => (
+                  <tr key={c._id} className="hover:bg-slate-50/70 transition">
                   <td className="py-3.5 px-5">
                     <div className="flex items-center gap-3">
                       <img
@@ -245,7 +257,7 @@ export const MentorDashboard: React.FC = () => {
                     </button>
                   </td>
                 </tr>
-              ))}
+              )))}
             </tbody>
           </table>
         </div>

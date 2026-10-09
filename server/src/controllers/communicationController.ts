@@ -60,9 +60,24 @@ export const getConversations = async (req: AuthRequest, res: Response): Promise
   }
 };
 
-export const getMessages = async (req: Request, res: Response): Promise<void> => {
+export const getMessages = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    if (!req.user) {
+      res.status(401).json({ success: false, message: 'Unauthorized' });
+      return;
+    }
     const { conversationId } = req.params;
+    
+    // Check if user is participant
+    const conv = await Conversation.findById(conversationId);
+    if (!conv) {
+      res.status(404).json({ success: false, message: 'Conversation not found' });
+      return;
+    }
+    if (req.user.role === 'student' && !conv.participants.includes(req.user._id)) {
+      res.status(403).json({ success: false, message: 'Forbidden: You are not a participant' });
+      return;
+    }
     const messages = await Message.find({ conversation: conversationId })
       .populate('sender', 'name email avatar')
       .sort({ createdAt: 1 });

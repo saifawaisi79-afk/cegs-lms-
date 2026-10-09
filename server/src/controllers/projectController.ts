@@ -107,20 +107,48 @@ export const createTask = async (req: AuthRequest, res: Response): Promise<void>
 
 export const updateTask = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    const task = await Task.findById(req.params.id);
+    if (!task) {
+      res.status(404).json({ success: false, message: 'Task not found' });
+      return;
+    }
+
+    if (req.user?.role === 'student') {
+      const project = await Project.findById(task.project);
+      if (!project || !project.teamMembers.includes(req.user._id)) {
+        res.status(403).json({ success: false, message: 'Forbidden: You are not in this project' });
+        return;
+      }
+    }
+
     const updateData = { ...req.body };
     if (req.body.status === 'COMPLETED' && !req.body.completedAt) {
       updateData.completedAt = new Date();
     }
 
-    const task = await Task.findByIdAndUpdate(req.params.id, updateData, { new: true });
-    res.status(200).json({ success: true, data: task });
+    const updatedTask = await Task.findByIdAndUpdate(req.params.id, updateData, { new: true });
+    res.status(200).json({ success: true, data: updatedTask });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
-export const deleteTask = async (req: Request, res: Response): Promise<void> => {
+export const deleteTask = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    const task = await Task.findById(req.params.id);
+    if (!task) {
+      res.status(404).json({ success: false, message: 'Task not found' });
+      return;
+    }
+
+    if (req.user?.role === 'student') {
+      const project = await Project.findById(task.project);
+      if (!project || !project.teamMembers.includes(req.user._id)) {
+        res.status(403).json({ success: false, message: 'Forbidden: You are not in this project' });
+        return;
+      }
+    }
+
     await Task.findByIdAndDelete(req.params.id);
     res.status(200).json({ success: true, message: 'Task deleted.' });
   } catch (error: any) {

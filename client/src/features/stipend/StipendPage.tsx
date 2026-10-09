@@ -14,6 +14,7 @@ import {
 import api from '../../services/api.js';
 import { IStipendRecord } from '../../types/index.js';
 import { PageHeader } from '../../components/ui/PageHeader.js';
+import { EmptyState } from '../../components/ui/EmptyState.js';
 import { StatCard } from '../../components/ui/StatCard.js';
 import { StatusBadge } from '../../components/ui/StatusBadge.js';
 
@@ -22,94 +23,28 @@ export const StipendPage: React.FC = () => {
   const [totalDisbursed, setTotalDisbursed] = useState(22000);
   const [pendingDisbursement, setPendingDisbursement] = useState(11500);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  const fallbackRecords: IStipendRecord[] = [
-    {
-      _id: 'st-1',
-      student: 'u1' as any,
-      monthName: 'Month 1: Foundations',
-      monthNumber: 1,
-      expectedAmount: 11000,
-      amountPaid: 11000,
-      status: 'Disbursed',
-      paymentReference: 'NEFT-CEGS-98214',
-      paymentDate: new Date(2026, 7, 5).toISOString(),
-      remarks: 'Disbursed on schedule upon 96% attendance verification',
-    },
-    {
-      _id: 'st-2',
-      student: 'u1' as any,
-      monthName: 'Month 2: Personality & Communication',
-      monthNumber: 2,
-      expectedAmount: 11000,
-      amountPaid: 11000,
-      status: 'Disbursed',
-      paymentReference: 'NEFT-CEGS-99402',
-      paymentDate: new Date(2026, 8, 5).toISOString(),
-      remarks: 'Disbursed on schedule upon 94% attendance verification',
-    },
-    {
-      _id: 'st-3',
-      student: 'u1' as any,
-      monthName: 'Month 3: Core Technical Training',
-      monthNumber: 3,
-      expectedAmount: 11500,
-      amountPaid: 0,
-      status: 'Processing',
-      paymentReference: 'NEFT-CEGS-PENDING',
-      remarks: 'Awaiting bank clearance for current cycle (94.2% Attendance Verified)',
-    },
-    {
-      _id: 'st-4',
-      student: 'u1' as any,
-      monthName: 'Month 4: Live Client Capstone',
-      monthNumber: 4,
-      expectedAmount: 12000,
-      amountPaid: 0,
-      status: 'Eligible',
-      remarks: 'Scheduled for disbursement post Sprint 2 completion',
-    },
-    {
-      _id: 'st-5',
-      student: 'u1' as any,
-      monthName: 'Month 5: Placement Drives',
-      monthNumber: 5,
-      expectedAmount: 21000,
-      amountPaid: 0,
-      status: 'Eligible',
-      remarks: 'Tier 2 progression rate (Months 5–6 rate: ₹20,000–₹22,000)',
-    },
-    {
-      _id: 'st-6',
-      student: 'u1' as any,
-      monthName: 'Month 6: Job-Ready Certification',
-      monthNumber: 6,
-      expectedAmount: 22000,
-      amountPaid: 0,
-      status: 'Eligible',
-      remarks: 'Tier 2 progression rate (Months 5–6 rate: ₹20,000–₹22,000)',
-    },
-  ];
+  const fetchStipends = async () => {
+    try {
+      setLoading(true);
+      setError(false);
+      const res = await api.get('/stipends');
+      if (res.data?.success && res.data.data.records?.length > 0) {
+        setRecords(res.data.data.records);
+        setTotalDisbursed(res.data.data.totalDisbursed || 0);
+        setPendingDisbursement(res.data.data.pendingDisbursement || 0);
+      } else {
+        setRecords([]);
+      }
+    } catch (err) {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchStipends = async () => {
-      try {
-        setLoading(true);
-        const res = await api.get('/stipends');
-        if (res.data?.success && res.data.data.records?.length > 0) {
-          setRecords(res.data.data.records);
-          setTotalDisbursed(res.data.data.totalDisbursed || 22000);
-          setPendingDisbursement(res.data.data.pendingDisbursement || 11500);
-        } else {
-          setRecords(fallbackRecords);
-        }
-      } catch (err) {
-        setRecords(fallbackRecords);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchStipends();
   }, []);
 
@@ -274,7 +209,29 @@ export const StipendPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {records.map((r) => (
+              {error ? (
+                <tr>
+                  <td colSpan={6}>
+                    <EmptyState
+                      icon={AlertCircle}
+                      title="Connection Error"
+                      description="Failed to load your stipend records."
+                      action={{ label: 'Retry', onClick: fetchStipends }}
+                    />
+                  </td>
+                </tr>
+              ) : records.length === 0 && !loading ? (
+                <tr>
+                  <td colSpan={6}>
+                    <EmptyState
+                      icon={CheckCircle}
+                      title="No Stipends Found"
+                      description="You do not have any stipend records yet."
+                    />
+                  </td>
+                </tr>
+              ) : (
+                records.map((r) => (
                 <tr key={r._id} className="hover:bg-slate-50/70 transition-colors">
                   <td className="py-3.5 px-5 font-semibold text-slate-900">
                     {r.monthName}
@@ -299,7 +256,7 @@ export const StipendPage: React.FC = () => {
                       : 'Scheduled'}
                   </td>
                 </tr>
-              ))}
+              )))}
             </tbody>
           </table>
         </div>

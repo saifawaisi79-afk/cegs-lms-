@@ -2,6 +2,8 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { LandingPage } from '../pages/LandingPage.js';
 import { LoginPage } from '../pages/LoginPage.js';
+import { ForgotPasswordPage } from '../pages/ForgotPasswordPage.js';
+import { ResetPasswordPage } from '../pages/ResetPasswordPage.js';
 import { VerifyCertificatePage } from '../pages/VerifyCertificatePage.js';
 import { VerifyReceiptPage } from '../pages/VerifyReceiptPage.js';
 import { StudentOnboardingPage } from '../pages/StudentOnboardingPage.js';
@@ -44,6 +46,8 @@ export const AppRoutes: React.FC = () => {
       {/* Public Pages */}
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/verify-certificate/:certificateId" element={<VerifyCertificatePage />} />
       <Route path="/verify-receipt/:receiptNumber" element={<VerifyReceiptPage />} />
 

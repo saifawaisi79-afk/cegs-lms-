@@ -3,68 +3,36 @@ import { Shield, Search, Filter, Clock, ShieldCheck, CheckCircle2 } from 'lucide
 import api from '../../services/api.js';
 import { PageHeader } from '../../components/ui/PageHeader.js';
 import { StatusBadge } from '../../components/ui/StatusBadge.js';
+import { EmptyState } from '../../components/ui/EmptyState.js';
+import { AlertCircle } from 'lucide-react';
 
 export const AuditLogsPage: React.FC = () => {
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [error, setError] = useState(false);
 
-  const fallbackLogs = [
-    {
-      _id: 'log-1',
-      action: 'Biometric Attendance Synchronized: Batch CEGS-OCT15',
-      module: 'Attendance Central',
-      userName: 'Batch A System Server',
-      userRole: 'system',
-      ipAddress: '192.168.1.104',
-      createdAt: new Date().toISOString(),
-    },
-    {
-      _id: 'log-2',
-      action: 'Assessment Score Conferred: Week 10 MongoDB (96%)',
-      module: 'Assessments Engine',
-      userName: 'Rajesh Ramanathan',
-      userRole: 'mentor',
-      ipAddress: '103.21.244.12',
-      createdAt: new Date(Date.now() - 3600000).toISOString(),
-    },
-    {
-      _id: 'log-3',
-      action: 'Placement Drive Scheduled: Cognizant Technology Solutions',
-      module: 'Placement Portal',
-      userName: 'Placement Cell Lead',
-      userRole: 'admin',
-      ipAddress: '103.21.244.18',
-      createdAt: new Date(Date.now() - 7200000).toISOString(),
-    },
-    {
-      _id: 'log-4',
-      action: 'Monthly Stipend Approval Batch Cleared (₹49,500)',
-      module: 'Stipends Central',
-      userName: 'Accounts Director',
-      userRole: 'admin',
-      ipAddress: '103.21.244.20',
-      createdAt: new Date(Date.now() - 14400000).toISOString(),
-    },
-  ];
+
+
+  const fetchLogs = async () => {
+    try {
+      setLoading(true);
+      setError(false);
+      const res = await api.get('/admin/audit-logs');
+      if (res.data?.success && res.data.data.length > 0) {
+        setLogs(res.data.data);
+      } else {
+        setLogs([]);
+      }
+    } catch (err) {
+      setError(true);
+      setLogs([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchLogs = async () => {
-      try {
-        setLoading(true);
-        const res = await api.get('/admin/audit-logs');
-        if (res.data?.success && res.data.data.length > 0) {
-          setLogs(res.data.data);
-        } else {
-          setLogs(fallbackLogs);
-        }
-      } catch (err) {
-        setLogs(fallbackLogs);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchLogs();
   }, []);
 
@@ -121,8 +89,30 @@ export const AuditLogsPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredLogs.map((log) => (
-                <tr key={log._id} className="hover:bg-slate-50/70 transition">
+              {error ? (
+                <tr>
+                  <td colSpan={6}>
+                    <EmptyState
+                      icon={AlertCircle}
+                      title="Connection Error"
+                      description="Failed to load audit logs."
+                      action={{ label: 'Retry', onClick: fetchLogs }}
+                    />
+                  </td>
+                </tr>
+              ) : filteredLogs.length === 0 && !loading ? (
+                <tr>
+                  <td colSpan={6}>
+                    <EmptyState
+                      icon={Shield}
+                      title="No Audit Logs"
+                      description="No audit logs found matching your criteria."
+                    />
+                  </td>
+                </tr>
+              ) : (
+                filteredLogs.map((log) => (
+                  <tr key={log._id} className="hover:bg-slate-50/70 transition">
                   <td className="py-3.5 px-5 font-mono text-slate-500 text-[11px]">
                     {new Date(log.createdAt).toLocaleString()}
                   </td>
@@ -138,7 +128,7 @@ export const AuditLogsPage: React.FC = () => {
                     {log.ipAddress || '127.0.0.1'}
                   </td>
                 </tr>
-              ))}
+              )))}
             </tbody>
           </table>
         </div>

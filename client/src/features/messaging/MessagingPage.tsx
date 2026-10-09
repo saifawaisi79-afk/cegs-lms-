@@ -18,6 +18,8 @@ import api from '../../services/api.js';
 import { useAuthStore } from '../../store/authStore.js';
 import { PageHeader } from '../../components/ui/PageHeader.js';
 import { StatusBadge } from '../../components/ui/StatusBadge.js';
+import { EmptyState } from '../../components/ui/EmptyState.js';
+import { AlertCircle } from 'lucide-react';
 
 export const MessagingPage: React.FC = () => {
   const { user } = useAuthStore();
@@ -28,83 +30,34 @@ export const MessagingPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [sending, setSending] = useState(false);
   const [showParticipantInfo, setShowParticipantInfo] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  const fallbackConversations = [
-    {
-      _id: 'conv-1',
-      lastMessage: 'Let’s review your MongoDB compound indexes tomorrow at 4:30 PM.',
-      updatedAt: new Date().toISOString(),
-      unreadCount: 1,
-      participants: [
-        {
-          _id: 'm1',
-          name: 'Rajesh Ramanathan',
-          email: 'rajesh.mentor@careerexpertglobal.com',
-          role: 'Principal Mentor',
-          avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
-          track: 'Full Stack Architecture',
-        },
-      ],
-    },
-    {
-      _id: 'conv-2',
-      lastMessage: 'Your resume review for Cognizant drive is complete with notes.',
-      updatedAt: new Date(Date.now() - 86400000).toISOString(),
-      unreadCount: 0,
-      participants: [
-        {
-          _id: 'p1',
-          name: 'Placement Operations Cell',
-          email: 'placements@careerexpertglobal.com',
-          role: 'Career Placement Officer',
-          avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
-          track: 'Corporate Relations',
-        },
-      ],
-    },
-  ];
-
-  const defaultMessages = [
-    {
-      _id: 'msg-1',
-      sender: 'm1',
-      content: 'Hi Saif, congratulations on scoring 96% in the Node.js Runtime assessment!',
-      createdAt: new Date(Date.now() - 7200000).toISOString(),
-    },
-    {
-      _id: 'msg-2',
-      sender: user?.id || 'me',
-      content: 'Thank you Rajesh sir! I worked hard on the event loop and stream buffer questions.',
-      createdAt: new Date(Date.now() - 3600000).toISOString(),
-    },
-    {
-      _id: 'msg-3',
-      sender: 'm1',
-      content: 'Let’s review your MongoDB compound indexes tomorrow at 4:30 PM.',
-      createdAt: new Date().toISOString(),
-    },
-  ];
+  const fetchConversations = async () => {
+    try {
+      setLoading(true);
+      setError(false);
+      const res = await api.get('/communication/conversations');
+      if (res.data?.success && res.data.data.length > 0) {
+        setConversations(res.data.data);
+        setActiveConv(res.data.data[0]);
+        loadMessages(res.data.data[0]._id);
+      } else {
+        setConversations([]);
+        setActiveConv(null);
+        setMessages([]);
+      }
+    } catch (err) {
+      setError(true);
+      setConversations([]);
+      setActiveConv(null);
+      setMessages([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchConversations = async () => {
-      try {
-        const res = await api.get('/communication/conversations');
-        if (res.data?.success && res.data.data.length > 0) {
-          setConversations(res.data.data);
-          setActiveConv(res.data.data[0]);
-          loadMessages(res.data.data[0]._id);
-        } else {
-          setConversations(fallbackConversations);
-          setActiveConv(fallbackConversations[0]);
-          setMessages(defaultMessages);
-        }
-      } catch (err) {
-        setConversations(fallbackConversations);
-        setActiveConv(fallbackConversations[0]);
-        setMessages(defaultMessages);
-      }
-    };
-
     fetchConversations();
   }, []);
 
@@ -115,7 +68,7 @@ export const MessagingPage: React.FC = () => {
         setMessages(res.data.data);
       }
     } catch (err) {
-      setMessages(defaultMessages);
+      setMessages([]);
     }
   };
 
@@ -194,42 +147,61 @@ export const MessagingPage: React.FC = () => {
           </div>
 
           <div className="divide-y divide-slate-100 flex-1 overflow-y-auto">
-            {conversations.map((conv) => {
-              const other = getOtherParticipant(conv);
-              const isSelected = activeConv?._id === conv._id;
+            {error ? (
+              <div className="p-4">
+                <EmptyState
+                  icon={AlertCircle}
+                  title="Connection Error"
+                  description="Failed to load conversations."
+                  action={{ label: 'Retry', onClick: fetchConversations }}
+                />
+              </div>
+            ) : conversations.length === 0 && !loading ? (
+              <div className="p-4">
+                <EmptyState
+                  icon={MessageSquare}
+                  title="No Conversations"
+                  description="You don't have any active chats yet."
+                />
+              </div>
+            ) : (
+              conversations.map((conv) => {
+                const other = getOtherParticipant(conv);
+                const isSelected = activeConv?._id === conv._id;
 
-              return (
-                <div
-                  key={conv._id}
-                  onClick={() => {
-                    setActiveConv(conv);
-                    loadMessages(conv._id);
-                  }}
-                  className={`p-3.5 cursor-pointer transition flex items-center gap-3 relative ${
-                    isSelected ? 'bg-teal-50/70 border-l-4 border-[#0F8F87]' : 'hover:bg-slate-50'
-                  }`}
-                >
-                  <div className="relative flex-shrink-0">
-                    <img
-                      src={other?.avatar || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150'}
-                      alt={other?.name}
-                      className="w-10 h-10 rounded-full object-cover border border-slate-200"
-                    />
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 absolute bottom-0 right-0 border-2 border-white ring-1 ring-emerald-100" />
-                  </div>
-
-                  <div className="truncate flex-1">
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs font-bold text-slate-900 truncate">{other?.name}</p>
-                      <span className="text-[10px] text-slate-400">
-                        {new Date(conv.updatedAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
+                return (
+                  <div
+                    key={conv._id}
+                    onClick={() => {
+                      setActiveConv(conv);
+                      loadMessages(conv._id);
+                    }}
+                    className={`p-3.5 cursor-pointer transition flex items-center gap-3 relative ${
+                      isSelected ? 'bg-teal-50/70 border-l-4 border-[#0F8F87]' : 'hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="relative flex-shrink-0">
+                      <img
+                        src={other?.avatar || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150'}
+                        alt={other?.name}
+                        className="w-10 h-10 rounded-full object-cover border border-slate-200"
+                      />
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 absolute bottom-0 right-0 border-2 border-white ring-1 ring-emerald-100" />
                     </div>
-                    <p className="text-[11px] text-slate-500 truncate mt-0.5">{conv.lastMessage}</p>
+
+                    <div className="truncate flex-1">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-bold text-slate-900 truncate">{other?.name}</p>
+                        <span className="text-[10px] text-slate-400">
+                          {new Date(conv.updatedAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 truncate mt-0.5">{conv.lastMessage}</p>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
         </div>
 

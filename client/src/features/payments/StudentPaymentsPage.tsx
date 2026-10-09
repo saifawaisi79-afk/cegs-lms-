@@ -24,6 +24,7 @@ import { StatCard } from '../../components/ui/StatCard.js';
 import { StatusBadge } from '../../components/ui/StatusBadge.js';
 import { ProgressBar } from '../../components/ui/ProgressBar.js';
 import { ReceiptModal } from '../../components/payments/ReceiptModal.js';
+import { EmptyState } from '../../components/ui/EmptyState.js';
 import { formatINR } from '../../utils/currency.js';
 import { downloadReceiptPdf } from '../../utils/pdfGenerator.js';
 import { useAuthStore } from '../../store/authStore.js';
@@ -35,6 +36,7 @@ export const StudentPaymentsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [selectedReceipt, setSelectedReceipt] = useState<IReceiptData | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     fetchPaymentsData();
@@ -43,31 +45,20 @@ export const StudentPaymentsPage: React.FC = () => {
   const fetchPaymentsData = async () => {
     try {
       setLoading(true);
+      setError(false);
       const res = await api.get('/payments/me');
       if (res.data?.success && res.data.data) {
         setSummary(res.data.data.summary);
         setPayments(res.data.data.payments);
+      } else {
+        setSummary(null);
+        setPayments([]);
       }
     } catch (err) {
       console.error('Error fetching payments:', err);
-      // Fallback data for robust UI display if backend starting up
-      const fallbackSummary: IPaymentSummary = {
-        totalCourseFee: 118000,
-        baseCourseFee: 100000,
-        gstRate: 18,
-        gstAmount: 18000,
-        totalPaid: 118000,
-        balanceDue: 0,
-        paymentStatus: 'Paid',
-        programTitle: '6-Month Job-Ready Training Program',
-        trackName: 'Full Stack Development',
-        studentName: user?.name || 'Saif Khan',
-        studentEmail: user?.email || 'student@careerexpertglobal.com',
-        rollNumber: 'CEGS-2025-0182',
-        batchCode: 'CEGS-FGT-OCT15',
-        enrollmentDate: new Date('2025-10-15').toISOString(),
-      };
-      setSummary(fallbackSummary);
+      setError(true);
+      setSummary(null);
+      setPayments([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -362,7 +353,14 @@ export const StudentPaymentsPage: React.FC = () => {
         </div>
 
         {/* Empty State (Section 29 Spec) */}
-        {payments.length === 0 ? (
+        {error ? (
+          <EmptyState
+            icon={AlertCircle}
+            title="Connection Error"
+            description="Failed to load your payment history."
+            action={{ label: 'Retry', onClick: fetchPaymentsData }}
+          />
+        ) : payments.length === 0 && !loading ? (
           <div className="card-premium p-12 text-center space-y-4 bg-white border border-slate-100 rounded-2xl shadow-sm">
             <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center mx-auto text-slate-400">
               <Receipt className="w-8 h-8" />

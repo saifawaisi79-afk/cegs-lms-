@@ -18,85 +18,35 @@ import api from '../../services/api.js';
 import { IMockInterview } from '../../types/index.js';
 import { PageHeader } from '../../components/ui/PageHeader.js';
 import { StatusBadge } from '../../components/ui/StatusBadge.js';
+import { EmptyState } from '../../components/ui/EmptyState.js';
+import { AlertCircle } from 'lucide-react';
 
 export const MockInterviewsPage: React.FC = () => {
   const [interviews, setInterviews] = useState<IMockInterview[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  const fallbackMocks: IMockInterview[] = [
-    {
-      _id: 'mock-1',
-      student: 'u1' as any,
-      mentor: { name: 'Rajesh Ramanathan' } as any,
-      interviewer: 'Rajesh Ramanathan',
-      interviewType: 'Technical',
-      scheduledAt: new Date(Date.now() + 86400000).toISOString(),
-      durationMinutes: 60,
-      status: 'Scheduled',
-      roundNumber: 1,
-      meetingLink: 'https://meet.google.com/cegs-fgt-mock1',
-      preparationMaterials: [
-        'Review React Fiber & reconciliation algorithms',
-        'Be prepared to explain MongoDB replica sets and write concerns',
-        'Review STAR response structure for previous conflict resolutions',
-      ],
-      ratings: {
-        communication: 0,
-        technical: 0,
-        confidence: 0,
-        problemSolving: 0,
-        professionalism: 0,
-        roleAwareness: 0,
-      },
-      overallScore: 0,
-      feedback: '',
-      recommendations: [],
-    },
-    {
-      _id: 'mock-2',
-      student: 'u1' as any,
-      mentor: { name: 'Priya Sharma' } as any,
-      interviewer: 'Priya Sharma (Senior HR Lead)',
-      interviewType: 'HR',
-      scheduledAt: new Date(Date.now() - 604800000).toISOString(),
-      durationMinutes: 60,
-      status: 'Completed',
-      roundNumber: 1,
-      overallScore: 92,
-      ratings: {
-        communication: 9,
-        technical: 9,
-        confidence: 9,
-        problemSolving: 10,
-        professionalism: 9,
-        roleAwareness: 9,
-      },
-      feedback:
-        'Excellent poise and articulate communication. Answered behavioral questions clearly using the STAR methodology. Demonstrated high cultural readiness for enterprise client pods.',
-      recommendations: [
-        'Keep answers slightly more concise during initial executive introductions',
-        'Highlight your capstone project leadership experience upfront',
-      ],
-    },
-  ];
+
+
+  const fetchMocks = async () => {
+    try {
+      setLoading(true);
+      setError(false);
+      const res = await api.get('/mentorship/mock-interviews');
+      if (res.data?.success && res.data.data.length > 0) {
+        setInterviews(res.data.data);
+      } else {
+        setInterviews([]);
+      }
+    } catch (err) {
+      setError(true);
+      setInterviews([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchMocks = async () => {
-      try {
-        setLoading(true);
-        const res = await api.get('/mentorship/mock-interviews');
-        if (res.data?.success && res.data.data.length > 0) {
-          setInterviews(res.data.data);
-        } else {
-          setInterviews(fallbackMocks);
-        }
-      } catch (err) {
-        setInterviews(fallbackMocks);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchMocks();
   }, []);
 
@@ -131,7 +81,21 @@ export const MockInterviewsPage: React.FC = () => {
 
       {/* Mock Interviews List */}
       <div className="space-y-6">
-        {interviews.map((mock) => {
+        {error ? (
+          <EmptyState
+            icon={AlertCircle}
+            title="Connection Error"
+            description="Failed to load your mock interviews."
+            action={{ label: 'Retry', onClick: fetchMocks }}
+          />
+        ) : interviews.length === 0 && !loading ? (
+          <EmptyState
+            icon={Video}
+            title="No Interviews Scheduled"
+            description="You do not have any mock interviews scheduled at this time."
+          />
+        ) : (
+          interviews.map((mock) => {
           const isCompleted = mock.status === 'Completed';
 
           return (
@@ -268,7 +232,7 @@ export const MockInterviewsPage: React.FC = () => {
               )}
             </div>
           );
-        })}
+        }))}
       </div>
     </div>
   );

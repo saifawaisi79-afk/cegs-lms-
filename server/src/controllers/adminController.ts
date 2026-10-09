@@ -155,7 +155,10 @@ export const globalSearch = async (req: Request, res: Response): Promise<void> =
       return;
     }
 
-    const regex = new RegExp(q.trim(), 'i');
+    const escapeRegExp = (str: string) => {
+      return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    };
+    const regex = new RegExp(escapeRegExp(q.trim()), 'i');
 
     const [students, lessons, assessments, projects, interviews, certificates] = await Promise.all([
       User.find({ role: 'student', $or: [{ name: regex }, { email: regex }] }).select('name email avatar').limit(5),

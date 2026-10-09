@@ -19,65 +19,16 @@ import { INotification } from '../../types/index.js';
 import { PageHeader } from '../../components/ui/PageHeader.js';
 import { StatusBadge } from '../../components/ui/StatusBadge.js';
 import { EmptyState } from '../../components/ui/EmptyState.js';
+import { AlertCircle } from 'lucide-react';
 
 export const NotificationsPage: React.FC = () => {
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState<INotification[]>([]);
   const [activeCategory, setActiveCategory] = useState<string>('All');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  const fallbackNotifs: INotification[] = [
-    {
-      _id: 'notif-1',
-      recipient: 'u1',
-      title: 'Cognizant Technology Solutions – Technical Round 2 Scheduled',
-      message: 'Your live interview evaluation loop has been confirmed for Friday at 3:00 PM IST with the panel.',
-      type: 'interview',
-      link: '/interviews',
-      isRead: false,
-      createdAt: new Date().toISOString(),
-    },
-    {
-      _id: 'notif-2',
-      recipient: 'u1',
-      title: 'Week 10 Assessment Score Published: 96% Merit',
-      message: 'Node.js Runtime & Microservices assessment score has been recorded into your 6-month growth portfolio.',
-      type: 'assessment',
-      link: '/assessments',
-      isRead: false,
-      createdAt: new Date(Date.now() - 3600000).toISOString(),
-    },
-    {
-      _id: 'notif-3',
-      recipient: 'u1',
-      title: '1:1 Mentorship Session Confirmed with Rajesh Ramanathan',
-      message: 'Scheduled for tomorrow at 4:30 PM. Please review your Sprint 2 pull requests before joining.',
-      type: 'mentor',
-      link: '/mentorship',
-      isRead: true,
-      createdAt: new Date(Date.now() - 86400000).toISOString(),
-    },
-    {
-      _id: 'notif-4',
-      recipient: 'u1',
-      title: 'Live Capstone Sprint 2 Milestone Goal Active',
-      message: 'Your team pod has 55% task completion. Next code freeze is set for Thursday 11:59 PM.',
-      type: 'project',
-      link: '/projects',
-      isRead: true,
-      createdAt: new Date(Date.now() - 172800000).toISOString(),
-    },
-    {
-      _id: 'notif-5',
-      recipient: 'u1',
-      title: 'Official Foundations Milestone Credential Conferred',
-      message: 'Your verified certificate for Month 1 & 2 competencies is now ready to download and share.',
-      type: 'certificate',
-      link: '/certificates',
-      isRead: true,
-      createdAt: new Date(Date.now() - 259200000).toISOString(),
-    },
-  ];
+
 
   useEffect(() => {
     fetchNotifications();
@@ -86,14 +37,16 @@ export const NotificationsPage: React.FC = () => {
   const fetchNotifications = async () => {
     try {
       setLoading(true);
+      setError(false);
       const res = await api.get('/communication/notifications');
       if (res.data?.success && res.data.data.length > 0) {
         setNotifications(res.data.data);
       } else {
-        setNotifications(fallbackNotifs);
+        setNotifications([]);
       }
     } catch (err) {
-      setNotifications(fallbackNotifs);
+      setError(true);
+      setNotifications([]);
     } finally {
       setLoading(false);
     }
@@ -199,7 +152,14 @@ export const NotificationsPage: React.FC = () => {
           </span>
         </div>
 
-        {filtered.length === 0 ? (
+        {error ? (
+          <EmptyState
+            icon={AlertCircle}
+            title="Connection Error"
+            description="Failed to load notifications."
+            action={{ label: 'Retry', onClick: fetchNotifications }}
+          />
+        ) : filtered.length === 0 && !loading ? (
           <EmptyState
             icon={Bell}
             title="No notifications in this category"

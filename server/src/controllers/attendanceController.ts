@@ -73,7 +73,13 @@ export const getMyAttendance = async (req: AuthRequest, res: Response): Promise<
 export const markAttendance = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { studentId, batchId, date, status, remarks, checkInTime } = req.body;
-    const targetStudent = studentId || req.user?._id;
+    
+    // Security check: if student, they can only mark their own attendance
+    if (req.user?.role === 'student' && studentId && studentId.toString() !== req.user._id.toString()) {
+      res.status(403).json({ success: false, message: 'Forbidden: Cannot mark attendance for another student' });
+      return;
+    }
+    const targetStudent = (req.user?.role === 'admin' || req.user?.role === 'mentor') && studentId ? studentId : req.user?._id;
     const attendanceDate = date ? new Date(date) : new Date();
 
     const startOfDay = new Date(attendanceDate);

@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import { User, IUser, UserRole } from '../models/User.js';
 import { StudentProfile } from '../models/Profiles.js';
 import { ENV } from '../config/env.js';
@@ -109,23 +110,59 @@ export const logout = async (req: Request, res: Response): Promise<void> => {
 };
 
 export const forgotPassword = async (req: Request, res: Response): Promise<void> => {
-  const { email } = req.body;
-  const user = await User.findOne({ email: email?.toLowerCase() });
-  // For security, always return success message even if not found
-  res.status(200).json({
-    success: true,
-    message: 'If an account with that email exists, password reset instructions have been sent.',
-  });
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email: email?.toLowerCase() });
+    
+    if (user) {
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      user.resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+      user.resetPasswordExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
+      await user.save();
+      
+      // In production, send email. Here we just log for dev purposes.
+      const resetUrl = `${ENV.CLIENT_URL}/reset-password?token=${resetToken}`;
+      console.log(`[DEV] Password reset link for ${email}: ${resetUrl}`);
+    }
+
+    // For security, always return success message even if not found
+    res.status(200).json({
+      success: true,
+      message: 'If an account with that email exists, password reset instructions have been sent.',
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
 };
 
 export const resetPassword = async (req: Request, res: Response): Promise<void> => {
-  const { email, newPassword } = req.body;
-  const user = await User.findOne({ email: email?.toLowerCase() });
-  if (!user) {
-    res.status(404).json({ success: false, message: 'User not found.' });
-    return;
+  try {
+    const { token, newPassword } = req.body;
+    
+    if (!token || !newPassword) {
+      res.status(400).json({ success: false, message: 'Token and new password are required.' });
+      return;
+    }
+
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+    const user = await User.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpires: { $gt: new Date() },
+    });
+
+    if (!user) {
+      res.status(400).json({ success: false, message: 'Invalid or expired reset token.' });
+      return;
+    }
+
+    user.password = newPassword;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+
+    res.status(200).json({ success: true, message: 'Password has been successfully updated.' });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
   }
-  user.password = newPassword;
-  await user.save();
-  res.status(200).json({ success: true, message: 'Password has been successfully updated.' });
 };

@@ -133,7 +133,7 @@ export const LoginPage: React.FC = () => {
               <label className="text-xs font-bold text-slate-700 block">Password</label>
               <button
                 type="button"
-                onClick={() => alert('Demo password for all accounts is: Password123!')}
+                onClick={() => navigate('/forgot-password')}
                 className="text-[11px] font-semibold text-[#0F8F87] hover:text-[#0D7A73]"
               >
                 Forgot password?
