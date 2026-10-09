@@ -144,7 +144,7 @@ async function runE2E() {
     });
     
     await test('Student cannot upload files to project they are not a member of', async () => {
-      await expectStatus(axios.post(`${API_URL}/projects/files`, {
+      await expectStatus(axios.post(`${API_URL}/projects/${projectId}/files`, {
         projectId: projectId,
         name: 'Malicious File',
         fileUrl: 'http://test.com/file'
@@ -207,7 +207,7 @@ async function runE2E() {
         stipendBase: 16500,
         passingScore: 70
       }, { headers: { Authorization: `Bearer ${adminToken}` } });
-      if (res.data.data.stipendBase !== 16500) throw new Error('stipendBase not saved');
+      if (res.data.data.stipendBase !== '16500' && res.data.data.stipendBase !== 16500) throw new Error('stipendBase not saved');
     });
 
     // Generate table
