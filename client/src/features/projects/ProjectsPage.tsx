@@ -94,20 +94,7 @@ export const ProjectsPage: React.FC = () => {
         setNewTaskDesc('');
       }
     } catch (err) {
-      const mockTask: ITask = {
-        _id: `task-${Date.now()}`,
-        project: selectedProject._id as any,
-        title: newTaskTitle,
-        description: newTaskDesc,
-        status: 'TODO',
-        priority: newTaskPriority,
-        sprintNumber: 2,
-        dueDate: new Date().toISOString(),
-      };
-      setTasks((prev) => [mockTask, ...prev]);
-      setShowNewTaskModal(false);
-      setNewTaskTitle('');
-      setNewTaskDesc('');
+      console.error(err);
     }
   };
 

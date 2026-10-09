@@ -47,42 +47,8 @@ export const StudentManagementPage: React.FC = () => {
       }
     } catch (err) {
       console.error(err);
-      // Realistic fallback
-      setStudents([
-        {
-          _id: 's1',
-          user: { name: 'Saif Khan', email: 'saif.khan@example.com', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150' },
-          rollNumber: 'CEGS-2026-001',
-          preferredTrack: 'Full Stack Development',
-          batch: { code: 'CEGS-OCT15' },
-          assignedMentor: { name: 'Rajesh Ramanathan' },
-          overallProgress: 68,
-          attendanceRate: 94.2,
-          status: 'Active',
-        },
-        {
-          _id: 's2',
-          user: { name: 'Ananya Patel', email: 'ananya.patel@example.com', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150' },
-          rollNumber: 'CEGS-2026-002',
-          preferredTrack: 'AI & Data Science',
-          batch: { code: 'CEGS-OCT15' },
-          assignedMentor: { name: 'Dr. Vikram Seth' },
-          overallProgress: 74,
-          attendanceRate: 98.0,
-          status: 'Active',
-        },
-        {
-          _id: 's3',
-          user: { name: 'Rohan Sharma', email: 'rohan.sharma@example.com', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150' },
-          rollNumber: 'CEGS-2026-003',
-          preferredTrack: 'Full Stack Development',
-          batch: { code: 'CEGS-OCT15' },
-          assignedMentor: { name: 'Rajesh Ramanathan' },
-          overallProgress: 62,
-          attendanceRate: 88.5,
-          status: 'Active',
-        },
-      ]);
+      // Remove fake data
+      setStudents([]);
     } finally {
       setLoading(false);
     }
@@ -106,23 +72,7 @@ export const StudentManagementPage: React.FC = () => {
         fetchStudents();
       }
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Candidate enrolled in local state.');
-      const mockNew = {
-        _id: `s-${Date.now()}`,
-        user: { name: newName, email: newEmail },
-        rollNumber: `CEGS-2026-0${students.length + 1}`,
-        preferredTrack: newTrack,
-        batch: { code: 'CEGS-OCT15' },
-        assignedMentor: { name: 'Rajesh Ramanathan' },
-        overallProgress: 10,
-        attendanceRate: 100,
-        status: 'Active',
-      };
-      setStudents((prev) => [mockNew, ...prev]);
-      setShowAddModal(false);
-      setNewName('');
-      setNewEmail('');
-      setNewPhone('');
+      alert(err.response?.data?.message || 'Failed to enroll candidate.');
     }
   };
 

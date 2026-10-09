@@ -115,17 +115,42 @@ export const createOffer = async (req: AuthRequest, res: Response): Promise<void
 export const updateOffer = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const offerId = req.params.id as string;
-    const offer = await Offer.findByIdAndUpdate(offerId, req.body, { new: true });
+    const offer = await Offer.findById(offerId);
+    if (!offer) {
+      res.status(404).json({ success: false, message: 'Offer not found' });
+      return;
+    }
 
-    if (req.body.status === 'Accepted') {
+    if (req.user?.role === 'mentor') {
+      res.status(403).json({ success: false, message: 'Forbidden' });
+      return;
+    }
+
+    const updateData: any = {};
+    if (req.user?.role === 'student') {
+      if (offer.student.toString() !== req.user._id.toString()) {
+        res.status(403).json({ success: false, message: 'Forbidden: Not your offer' });
+        return;
+      }
+      if (req.body.status) updateData.status = req.body.status;
+    } else if (req.user?.role === 'admin') {
+      const allowed = ['companyName', 'role', 'ctc', 'status', 'offerDate', 'student'];
+      for (const field of allowed) {
+        if (req.body[field] !== undefined) updateData[field] = req.body[field];
+      }
+    }
+
+    const updatedOffer = await Offer.findByIdAndUpdate(offerId, updateData, { new: true });
+
+    if (updateData.status === 'Accepted') {
       await StudentProfile.findOneAndUpdate(
-        { user: offer?.student },
+        { user: offer.student },
         { placementStatus: 'Placed' }
       );
     }
 
-    await logAuditEvent(req, 'UPDATE_OFFER', 'PLACEMENT', offerId, req.body);
-    res.status(200).json({ success: true, data: offer });
+    await logAuditEvent(req, 'UPDATE_OFFER', 'PLACEMENT', offerId, updateData);
+    res.status(200).json({ success: true, data: updatedOffer });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }

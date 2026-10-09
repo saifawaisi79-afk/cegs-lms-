@@ -74,7 +74,7 @@ export const getMessages = async (req: AuthRequest, res: Response): Promise<void
       res.status(404).json({ success: false, message: 'Conversation not found' });
       return;
     }
-    if (req.user.role === 'student' && !conv.participants.includes(req.user._id)) {
+    if (req.user.role !== 'admin' && !conv.participants.includes(req.user._id)) {
       res.status(403).json({ success: false, message: 'Forbidden: You are not a participant' });
       return;
     }

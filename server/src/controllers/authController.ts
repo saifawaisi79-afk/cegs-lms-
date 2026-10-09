@@ -121,8 +121,10 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
       await user.save();
       
       // In production, send email. Here we just log for dev purposes.
-      const resetUrl = `${ENV.CLIENT_URL}/reset-password?token=${resetToken}`;
-      console.log(`[DEV] Password reset link for ${email}: ${resetUrl}`);
+      if (process.env.NODE_ENV !== 'production') {
+        const resetUrl = `${ENV.CLIENT_URL}/reset-password?token=${resetToken}`;
+        console.log(`[DEV] Password reset link for ${email}: ${resetUrl}`);
+      }
     }
 
     // For security, always return success message even if not found
@@ -157,6 +159,7 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
     }
 
     user.password = newPassword;
+    user.passwordChangedAt = new Date();
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
     await user.save();

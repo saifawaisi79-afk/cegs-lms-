@@ -80,7 +80,21 @@ export const markAttendance = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
     const targetStudent = (req.user?.role === 'admin' || req.user?.role === 'mentor') && studentId ? studentId : req.user?._id;
-    const attendanceDate = date ? new Date(date) : new Date();
+    let attendanceDate = date ? new Date(date) : new Date();
+    let attendanceStatus = status || 'Present';
+
+    if (req.user?.role === 'student') {
+      attendanceDate = new Date();
+      if (!['Present', 'Late'].includes(attendanceStatus)) {
+        res.status(400).json({ success: false, message: 'Invalid status for self check-in' });
+        return;
+      }
+    } else {
+      if (!['Present', 'Absent', 'Late', 'Excused'].includes(attendanceStatus)) {
+         res.status(400).json({ success: false, message: 'Invalid status' });
+         return;
+      }
+    }
 
     const startOfDay = new Date(attendanceDate);
     startOfDay.setHours(0, 0, 0, 0);
@@ -93,7 +107,7 @@ export const markAttendance = async (req: AuthRequest, res: Response): Promise<v
     });
 
     if (record) {
-      record.status = status || 'Present';
+      record.status = attendanceStatus;
       record.remarks = remarks || record.remarks;
       if (checkInTime) record.checkInTime = checkInTime;
       await record.save();
@@ -102,7 +116,7 @@ export const markAttendance = async (req: AuthRequest, res: Response): Promise<v
         student: targetStudent,
         batch: batchId,
         date: attendanceDate,
-        status: status || 'Present',
+        status: attendanceStatus,
         markedBy: req.user?._id,
         remarks: remarks || '',
         checkInTime: checkInTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),

@@ -21,6 +21,7 @@ import {
   Eye,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore.js';
+import { useParams } from 'react-router-dom';
 import api from '../../services/api.js';
 import { PageHeader } from '../../components/ui/PageHeader.js';
 import { StatusBadge } from '../../components/ui/StatusBadge.js';
@@ -32,7 +33,9 @@ import { IReceiptData } from '../../types/index.js';
 
 export const StudentProfilePage: React.FC = () => {
   const { user } = useAuthStore();
-  const [profile, setProfile] = useState<any>(user?.studentProfile || null);
+  const { id } = useParams<{ id: string }>();
+  const [profile, setProfile] = useState<any>(null);
+  const [displayUser, setDisplayUser] = useState<any>(user || null);
   const [activeTab, setActiveTab] = useState<'overview' | 'education' | 'skills' | 'projects' | 'interviews' | 'credentials' | 'payments'>('overview');
   const [paymentsSummary, setPaymentsSummary] = useState<any>(null);
   const [paymentsList, setPaymentsList] = useState<any[]>([]);
@@ -41,12 +44,21 @@ export const StudentProfilePage: React.FC = () => {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const res = await api.get('/auth/me');
-        if (res.data?.success && res.data.user.studentProfile) {
-          setProfile(res.data.user.studentProfile);
+        if (id) {
+          const res = await api.get(`/students/${id}/full-profile`);
+          if (res.data?.success) {
+            setProfile(res.data.data.profile);
+            setDisplayUser(res.data.data.user);
+          }
+        } else {
+          const res = await api.get('/auth/me');
+          if (res.data?.success && res.data.user.studentProfile) {
+            setProfile(res.data.user.studentProfile);
+            setDisplayUser(res.data.user);
+          }
         }
       } catch (err) {
-        console.error(err);
+        console.error('Failed to fetch profile', err);
       }
     };
 
@@ -80,14 +92,14 @@ export const StudentProfilePage: React.FC = () => {
       <div className="card-premium rounded-2xl p-6 sm:p-8 bg-white border border-slate-100 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div className="flex items-start sm:items-center gap-5">
           <img
-            src={user?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=180'}
-            alt={user?.name}
+            src={displayUser?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=180'}
+            alt={displayUser?.name}
             className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover border-2 border-[#0F8F87] shadow-sm flex-shrink-0"
           />
           <div className="space-y-1.5">
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                {user?.name}
+                {displayUser?.name}
               </h2>
               <StatusBadge label="Full Stack Track" variant="teal" size="sm" />
             </div>
@@ -98,7 +110,7 @@ export const StudentProfilePage: React.FC = () => {
             <div className="flex flex-wrap items-center gap-4 text-xs text-foreground-muted pt-1">
               <span className="flex items-center gap-1">
                 <Mail className="w-3.5 h-3.5 text-foreground-muted" />
-                <span>{user?.email}</span>
+                <span>{displayUser?.email}</span>
               </span>
               <span className="flex items-center gap-1">
                 <Phone className="w-3.5 h-3.5 text-foreground-muted" />

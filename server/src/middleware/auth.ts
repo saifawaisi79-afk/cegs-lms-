@@ -17,8 +17,6 @@ export const authenticate = async (
 
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
       token = req.headers.authorization.split(' ')[1];
-    } else if (req.cookies && req.cookies.token) {
-      token = req.cookies.token;
     }
 
     if (!token) {
@@ -29,7 +27,7 @@ export const authenticate = async (
       return;
     }
 
-    const decoded = jwt.verify(token, ENV.JWT_SECRET) as { id: string; role: UserRole };
+    const decoded = jwt.verify(token, ENV.JWT_SECRET) as { id: string; role: UserRole; iat: number };
     const user = await User.findById(decoded.id).select('-password');
 
     if (!user) {
@@ -44,6 +42,14 @@ export const authenticate = async (
       res.status(403).json({
         success: false,
         message: 'Your account is deactivated. Please contact support.',
+      });
+      return;
+    }
+
+    if (user.passwordChangedAt && decoded.iat < user.passwordChangedAt.getTime() / 1000) {
+      res.status(401).json({
+        success: false,
+        message: 'Password recently changed. Please log in again.',
       });
       return;
     }

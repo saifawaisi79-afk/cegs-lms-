@@ -42,7 +42,7 @@ export const getStudents = async (req: Request, res: Response): Promise<void> =>
   }
 };
 
-export const getStudentById = async (req: Request, res: Response): Promise<void> => {
+export const getStudentById = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const profile = await StudentProfile.findOne({
       $or: [{ _id: req.params.id }, { user: req.params.id }],
@@ -57,13 +57,22 @@ export const getStudentById = async (req: Request, res: Response): Promise<void>
       return;
     }
 
+    if (req.user?.role === 'student' && profile.user._id.toString() !== req.user._id.toString()) {
+      res.status(403).json({ success: false, message: 'Forbidden' });
+      return;
+    }
+    if (req.user?.role === 'mentor' && profile.assignedMentor?._id?.toString() !== req.user._id.toString()) {
+      res.status(403).json({ success: false, message: 'Forbidden: Not your assigned student' });
+      return;
+    }
+
     res.status(200).json({ success: true, data: profile });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
-export const getStudentFullProfile = async (req: Request, res: Response): Promise<void> => {
+export const getStudentFullProfile = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const studentUserId = req.params.id;
     const profile = await StudentProfile.findOne({
@@ -76,6 +85,11 @@ export const getStudentFullProfile = async (req: Request, res: Response): Promis
 
     if (!profile) {
       res.status(404).json({ success: false, message: 'Student profile not found.' });
+      return;
+    }
+
+    if (req.user?.role === 'mentor' && profile.assignedMentor?._id?.toString() !== req.user?._id.toString()) {
+      res.status(403).json({ success: false, message: 'Forbidden: Not your assigned student' });
       return;
     }
 
@@ -187,8 +201,16 @@ export const updateStudent = async (req: AuthRequest, res: Response): Promise<vo
       for (const field of allowed) {
         if (req.body[field] !== undefined) (profile as any)[field] = req.body[field];
       }
+    } else if (req.user?.role === 'admin') {
+      const forbidden = ['user', '_id', 'role'];
+      for (const key of Object.keys(req.body)) {
+        if (!forbidden.includes(key)) {
+          (profile as any)[key] = req.body[key];
+        }
+      }
     } else {
-      Object.assign(profile, req.body);
+      res.status(403).json({ success: false, message: 'Forbidden' });
+      return;
     }
     
     await profile.save();

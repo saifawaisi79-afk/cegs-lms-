@@ -14,6 +14,8 @@ import {
 } from '../controllers/placementController.js';
 import { authenticate } from '../middleware/auth.js';
 import { authorize } from '../middleware/rbac.js';
+import { validateRequest } from '../middleware/validate.js';
+import { updateOfferSchema } from '../utils/schemas.js';
 
 const router = Router();
 
@@ -33,7 +35,7 @@ router.put('/interviews/:id', authorize('admin', 'mentor'), updateInterview);
 // Offers
 router.get('/offers', getOffers);
 router.post('/offers', authorize('admin'), createOffer);
-router.put('/offers/:id', updateOffer);
+router.put('/offers/:id', validateRequest(updateOfferSchema), updateOffer);
 
 // Stats & Funnel
 router.get('/stats', getPlacementStats);

@@ -10,6 +10,8 @@ import {
 } from '../controllers/studentController.js';
 import { authenticate } from '../middleware/auth.js';
 import { authorize } from '../middleware/rbac.js';
+import { validateRequest } from '../middleware/validate.js';
+import { updateStudentSchema } from '../utils/schemas.js';
 
 const router = Router();
 
@@ -24,6 +26,6 @@ router.post('/', authorize('admin'), createStudent);
 router.post('/onboarding', saveOnboarding);
 router.get('/:id', getStudentById);
 router.get('/:id/full-profile', authorize('mentor', 'admin'), getStudentFullProfile);
-router.put('/:id', updateStudent);
+router.put('/:id', validateRequest(updateStudentSchema), updateStudent);
 
 export default router;

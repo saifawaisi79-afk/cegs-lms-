@@ -33,11 +33,7 @@ router.use('/admin', adminRoutes);
 
 // Health check endpoint
 router.get('/health', (req, res) => {
-  res.status(200).json({
-    status: 'ok',
-    system: 'Career Expert Global Solutions LMS API',
-    timestamp: new Date().toISOString(),
-  });
+  res.status(200).send('healthy');
 });
 
 export default router;

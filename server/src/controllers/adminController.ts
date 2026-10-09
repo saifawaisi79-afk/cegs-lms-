@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { AuthRequest } from '../middleware/auth.js';
 import { User } from '../models/User.js';
 import { StudentProfile, MentorProfile } from '../models/Profiles.js';
 import { Program, Track, Batch, Module, Lesson } from '../models/Curriculum.js';
@@ -144,7 +145,7 @@ export const getReports = async (req: Request, res: Response): Promise<void> => 
   }
 };
 
-export const globalSearch = async (req: Request, res: Response): Promise<void> => {
+export const globalSearch = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { q } = req.query;
     if (!q || typeof q !== 'string' || q.trim().length === 0) {
@@ -160,8 +161,14 @@ export const globalSearch = async (req: Request, res: Response): Promise<void> =
     };
     const regex = new RegExp(escapeRegExp(q.trim()), 'i');
 
-    const [students, lessons, assessments, projects, interviews, certificates] = await Promise.all([
-      User.find({ role: 'student', $or: [{ name: regex }, { email: regex }] }).select('name email avatar').limit(5),
+    let students = [];
+    if (req.user?.role === 'admin' || req.user?.role === 'mentor') {
+      students = await User.find({ role: 'student', $or: [{ name: regex }, { email: regex }] }).select('name email avatar').limit(5);
+    } else {
+      students = await User.find({ _id: req.user?._id, role: 'student', $or: [{ name: regex }] }).select('name avatar').limit(5);
+    }
+
+    const [lessons, assessments, projects, interviews, certificates] = await Promise.all([
       Lesson.find({ $or: [{ title: regex }, { description: regex }] }).select('title description module order').limit(5),
       Assessment.find({ $or: [{ title: regex }, { description: regex }] }).select('title weekNumber monthNumber type').limit(5),
       Project.find({ $or: [{ title: regex }, { technologies: regex }] }).select('title technologies status').limit(5),

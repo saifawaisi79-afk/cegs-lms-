@@ -85,6 +85,7 @@ export const AppRoutes: React.FC = () => {
           <Route element={<ProtectedRoute allowedRoles={['mentor', 'admin']} />}>
             <Route path="/mentor" element={<MentorDashboard />} />
             <Route path="/mentor/students" element={<MentorDashboard />} />
+            <Route path="/mentor/students/:id" element={<StudentProfilePage />} />
             <Route path="/mentor/mock-interviews" element={<MockInterviewsPage />} />
           </Route>
 
@@ -92,6 +93,7 @@ export const AppRoutes: React.FC = () => {
           <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/students" element={<StudentManagementPage />} />
+            <Route path="/admin/students/:id" element={<StudentProfilePage />} />
             <Route path="/admin/mentors" element={<MentorDashboard />} />
             <Route path="/admin/batches" element={<StudentManagementPage />} />
             <Route path="/admin/tracks" element={<CareerTracksPage />} />

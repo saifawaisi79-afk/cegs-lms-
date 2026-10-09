@@ -70,7 +70,29 @@ export const createProject = async (req: AuthRequest, res: Response): Promise<vo
 export const updateProject = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const projectId = req.params.id as string;
-    const project = await Project.findByIdAndUpdate(projectId, req.body, { new: true });
+    const project = await Project.findById(projectId);
+    
+    if (!project) {
+      res.status(404).json({ success: false, message: 'Project not found' });
+      return;
+    }
+    
+    if (req.user?.role === 'student') {
+      if (!project.teamMembers.includes(req.user._id)) {
+        res.status(403).json({ success: false, message: 'Forbidden' });
+        return;
+      }
+      // Students can't edit project structure directly, or maybe only specific fields
+      // For now, allow safe updates (description, repoUrl, liveUrl)
+      const allowed = ['description', 'repoUrl', 'liveUrl'];
+      const updateData: any = {};
+      for (const f of allowed) if (req.body[f] !== undefined) updateData[f] = req.body[f];
+      Object.assign(project, updateData);
+    } else {
+      Object.assign(project, req.body);
+    }
+    
+    await project.save();
     await logAuditEvent(req, 'UPDATE_PROJECT', 'PROJECTS', projectId, req.body);
     res.status(200).json({ success: true, data: project });
   } catch (error: any) {
@@ -95,6 +117,14 @@ export const getTasks = async (req: Request, res: Response): Promise<void> => {
 
 export const createTask = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    if (req.user?.role === 'student') {
+      const project = await Project.findById(req.body.project);
+      if (!project || !project.teamMembers.includes(req.user._id)) {
+        res.status(403).json({ success: false, message: 'Forbidden: You are not in this project' });
+        return;
+      }
+    }
+    
     const task = await Task.create({
       ...req.body,
       assignedTo: req.body.assignedTo || req.user?._id,
@@ -121,8 +151,18 @@ export const updateTask = async (req: AuthRequest, res: Response): Promise<void>
       }
     }
 
-    const updateData = { ...req.body };
-    if (req.body.status === 'COMPLETED' && !req.body.completedAt) {
+    let updateData: any = {};
+    if (req.user?.role === 'student') {
+      const allowed = ['title', 'description', 'status', 'priority', 'dueDate', 'assignedTo'];
+      for (const f of allowed) {
+        if (req.body[f] !== undefined) updateData[f] = req.body[f];
+      }
+    } else {
+      updateData = { ...req.body };
+      delete updateData.project; // Prevent project change
+    }
+    
+    if (updateData.status === 'COMPLETED' && !updateData.completedAt) {
       updateData.completedAt = new Date();
     }
 
@@ -160,6 +200,15 @@ export const deleteTask = async (req: AuthRequest, res: Response): Promise<void>
 export const uploadProjectFile = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { projectId, name, fileUrl, fileType, sizeBytes } = req.body;
+    
+    if (req.user?.role === 'student') {
+      const project = await Project.findById(projectId);
+      if (!project || !project.teamMembers.includes(req.user._id)) {
+        res.status(403).json({ success: false, message: 'Forbidden' });
+        return;
+      }
+    }
+    
     const file = await ProjectFile.create({
       project: projectId,
       name,

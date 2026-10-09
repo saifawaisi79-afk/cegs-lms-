@@ -50,30 +50,15 @@ export const AttendancePage: React.FC = () => {
       }
     } catch (err) {
       console.error('Error fetching attendance:', err);
-      // Realistic fallback
-      const sampleRecords: IAttendance[] = Array.from({ length: 22 }).map((_, i) => {
-        const day = i + 1;
-        const isLate = day === 8;
-        const isAbsent = day === 14;
-        return {
-          _id: `att-${day}`,
-          user: 'usr-1',
-          date: new Date(2026, 9, day).toISOString(),
-          status: isAbsent ? 'Absent' : isLate ? 'Late' : 'Present',
-          checkInTime: isAbsent ? undefined : isLate ? '09:42 AM' : '09:12 AM',
-          remarks: isAbsent ? 'Medical leave requested' : isLate ? 'Transit delay reported' : 'On-time attendance',
-        } as any;
-      });
-
       setData({
-        records: sampleRecords,
-        totalDays: 22,
-        presentCount: 20,
-        lateCount: 1,
-        absentCount: 1,
-        percentage: 95.5,
-        todayStatus: 'Present',
-        todayCheckInTime: '09:12 AM',
+        records: [],
+        totalDays: 0,
+        presentCount: 0,
+        lateCount: 0,
+        absentCount: 0,
+        percentage: 0,
+        todayStatus: 'Pending',
+        todayCheckInTime: '',
       });
     } finally {
       setLoading(false);
