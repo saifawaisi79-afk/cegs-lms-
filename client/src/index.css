@@ -1,0 +1,350 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Foundation Background System */
+    --background: #F7F8F6;
+    --surface: #FFFFFF;
+    --surface-muted: #F1F4F2;
+    --surface-tinted: #EEF8F6;
+
+    /* Typography Hierarchy */
+    --foreground: #17202A;
+    --foreground-muted: #52606D;
+    --foreground-subtle: #7B8794;
+    --heading: #111827;
+
+    /* Primary Brand Teal */
+    --brand: #0F8F87;
+    --brand-secondary: #16A89F;
+    --brand-soft: #E8F7F5;
+    --brand-very-soft: #F2FBFA;
+    --brand-hover: #0D7A73;
+    --brand-dark: #0A615B;
+
+    /* Subtle Border System */
+    --border: #E2E8E5;
+    --border-soft: #EDF1EF;
+    --border-input: #DDE5E1;
+
+    /* Premium Gold Milestone Accent */
+    --gold: #C9A227;
+    --gold-soft: #FBF4D8;
+
+    /* Functional Status Accents */
+    --success: #16A34A;
+    --success-soft: #ECF9F0;
+    --warning: #D97706;
+    --warning-soft: #FFF7E8;
+    --danger: #DC2626;
+    --danger-soft: #FEF0F0;
+    --info: #2563EB;
+    --info-soft: #EFF5FF;
+
+    /* Legacy compatibility tokens */
+    --color-brand-primary: #0F8F87;
+    --color-brand-navy: #17202A;
+    --color-accent-gold: #C9A227;
+    --color-bg-main: #F7F8F6;
+    --color-card-bg: #FFFFFF;
+    --color-border-subtle: #E2E8E5;
+  }
+
+  html, body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    color: var(--foreground);
+    background-color: var(--background);
+  }
+
+  body {
+    background-color: #F7F8F6;
+    color: #17202A;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Custom sleek scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: #DDE5E1;
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: #BAC7C1;
+  }
+}
+
+@layer components {
+  /* Unified Growly card tokens matching CEGS Design System */
+  .card-premium,
+  .card-editorial {
+    background-color: #FFFFFF;
+    border: 1px solid #F1F5F9;
+    border-radius: 1rem;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
+    transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .card-premium-hover,
+  .card-editorial-hover {
+    &:hover {
+      box-shadow: 0 10px 25px -5px rgba(15, 143, 135, 0.1), 0 4px 10px -2px rgba(0, 0, 0, 0.04);
+      border-color: rgba(15, 143, 135, 0.35);
+    }
+  }
+
+  /* Legacy color remapping to new Growly theme */
+  [class*="border-[#E5E3DD]"] {
+    border-color: #F1F5F9 !important;
+  }
+  [class*="bg-[#FAF9F5]"] {
+    background-color: #F8FAFC !important;
+  }
+  [class*="bg-[#F4F2EB]"] {
+    background-color: #F1F5F9 !important;
+  }
+  .text-charcoal {
+    color: #0F172A !important;
+  }
+
+  .card-hero {
+    background: linear-gradient(135deg, #111625 0%, #1A2238 50%, #111625 100%);
+    color: #FFFFFF;
+    border-radius: 1rem;
+    padding: 1.5rem;
+    border: 1px solid #1C2336;
+    box-shadow: 0 8px 30px -4px rgba(17, 22, 37, 0.2);
+  }
+
+  /* Eyebrow Label */
+  .eyebrow-text {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: #0F8F87;
+  }
+
+  /* Primary Button Standard */
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background-color: #0F8F87;
+    color: #FFFFFF;
+    font-weight: 600;
+    font-size: 0.875rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 2px 0 rgba(15, 143, 135, 0.2);
+    transition: all 150ms ease-in-out;
+    &:hover {
+      background-color: #0D7A73;
+    }
+    &:active {
+      background-color: #0A615B;
+    }
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+
+  /* Secondary Button Standard */
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background-color: #FFFFFF;
+    color: #17202A;
+    border: 1px solid #E2E8E5;
+    font-weight: 600;
+    font-size: 0.875rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 2px 0 rgba(23, 32, 42, 0.03);
+    transition: all 150ms ease-in-out;
+    &:hover {
+      background-color: #F2FBFA;
+      color: #0F8F87;
+      border-color: #C5EDE8;
+    }
+  }
+
+  /* Status Badges */
+  .badge-teal {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.125rem 0.625rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background-color: #E8F7F5;
+    color: #0F8F87;
+    border: 1px solid #C5EDE8;
+  }
+
+  .badge-orange {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.125rem 0.625rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background-color: #FFF7E8;
+    color: #D97706;
+    border: 1px solid #FED7AA;
+  }
+
+  .badge-blue {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.125rem 0.625rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background-color: #EFF5FF;
+    color: #2563EB;
+    border: 1px solid #BFDBFE;
+  }
+
+  .badge-green {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.125rem 0.625rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background-color: #ECF9F0;
+    color: #16A34A;
+    border: 1px solid #BBF7D0;
+  }
+
+  .badge-red {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.125rem 0.625rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background-color: #FEF0F0;
+    color: #DC2626;
+    border: 1px solid #FECACA;
+  }
+
+  .badge-gold {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.125rem 0.625rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background-color: #FBF4D8;
+    color: #92400E;
+    border: 1px solid #FDE68A;
+  }
+
+  .badge-neutral {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.125rem 0.625rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background-color: #F1F4F2;
+    color: #52606D;
+    border: 1px solid #E2E8E5;
+  }
+
+  /* Skeleton animation */
+  .skeleton-shimmer {
+    background: linear-gradient(
+      90deg,
+      #F1F4F2 0%,
+      #E5EAE7 50%,
+      #F1F4F2 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite linear;
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
+
+  @keyframes spin-slow {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .animate-spin-slow {
+    animation: spin-slow 10s linear infinite;
+  }
+}
+
+/* Print Friendly Stylesheet for CEGS Payment Receipts */
+@media print {
+  aside,
+  nav,
+  header,
+  button,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .receipt-print-container {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 auto !important;
+    max-width: 100% !important;
+    display: block !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+}
