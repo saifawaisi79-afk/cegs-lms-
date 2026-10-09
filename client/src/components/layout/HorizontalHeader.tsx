@@ -588,16 +588,18 @@ export const HorizontalHeader: React.FC<HorizontalHeaderProps> = ({
                     <span>My Payments & Invoices</span>
                   </button>
 
-                  <button
-                    onClick={() => {
-                      navigate('/settings');
-                      setShowUserMenu(false);
-                    }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-[#17202A] hover:bg-[#F2FBFA] hover:text-[#0F8F87] transition text-left"
-                  >
-                    <Settings className="w-3.5 h-3.5 text-[#7B8794]" />
-                    <span>Account Settings</span>
-                  </button>
+                  {role === 'admin' && (
+                    <button
+                      onClick={() => {
+                        navigate('/admin/settings');
+                        setShowUserMenu(false);
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-[#17202A] hover:bg-[#F2FBFA] hover:text-[#0F8F87] transition text-left"
+                    >
+                      <Settings className="w-3.5 h-3.5 text-[#7B8794]" />
+                      <span>System Settings</span>
+                    </button>
+                  )}
 
                   <div className="pt-1 border-t border-[#EDF1EF]">
                     <button

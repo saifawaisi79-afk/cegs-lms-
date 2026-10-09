@@ -156,8 +156,8 @@ export const Navbar: React.FC<NavbarProps> = ({
         return { category: 'Communication', title: 'Notification Center' };
       case '/profile':
         return { category: 'Account', title: 'Profile & Portfolio' };
-      case '/settings':
-        return { category: 'Account', title: 'Settings' };
+      case '/admin/settings':
+        return { category: 'Account', title: 'System Settings' };
       default:
         return { category: 'CEGS LMS', title: 'Platform Portal' };
     }
@@ -384,16 +384,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                 Profile & Portfolio
               </button>
 
-              <button
-                onClick={() => {
-                  setShowUserMenu(false);
-                  navigate('/settings');
-                }}
-                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 rounded-xl transition"
-              >
-                <Settings className="w-4 h-4 text-slate-400" />
-                Account Settings
-              </button>
+              {role === 'admin' && (
+                <button
+                  onClick={() => {
+                    setShowUserMenu(false);
+                    navigate('/admin/settings');
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 rounded-xl transition"
+                >
+                  <Settings className="w-4 h-4 text-slate-400" />
+                  System Settings
+                </button>
+              )}
 
               <div className="my-1 border-t border-slate-100" />
 

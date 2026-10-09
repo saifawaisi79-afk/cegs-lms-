@@ -105,7 +105,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       group: 'Account',
       items: [
         { label: 'Profile', path: '/profile', icon: GraduationCap },
-        { label: 'Settings', path: '/settings', icon: Settings },
+        // Removed settings for students
       ],
     },
   ];
@@ -152,7 +152,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       group: 'Account',
       items: [
         { label: 'Profile', path: '/profile', icon: GraduationCap },
-        { label: 'Settings', path: '/settings', icon: Settings },
+        // Removed settings for mentors
       ],
     },
   ];
@@ -209,7 +209,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     {
       group: 'System',
       items: [
-        { label: 'Settings', path: '/settings', icon: Settings },
+        { label: 'Settings', path: '/admin/settings', icon: Settings },
       ],
     },
   ];

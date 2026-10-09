@@ -39,6 +39,7 @@ export const ProjectsPage: React.FC = () => {
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDesc, setNewTaskDesc] = useState('');
   const [newTaskPriority, setNewTaskPriority] = useState<'Low' | 'Medium' | 'High' | 'Critical'>('Medium');
+  const [taskActionError, setTaskActionError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchProjectData();
@@ -69,12 +70,16 @@ export const ProjectsPage: React.FC = () => {
 
   const handleUpdateTaskStatus = async (taskId: string, newStatus: 'TODO' | 'IN PROGRESS' | 'REVIEW' | 'COMPLETED') => {
     try {
+      setTaskActionError(null);
       setTasks((prev) =>
         prev.map((t) => (t._id === taskId ? { ...t, status: newStatus } : t))
       );
-      await api.put(`/projects/tasks/${taskId}`, { status: newStatus });
-    } catch (err) {
+      const res = await api.put(`/projects/tasks/${taskId}`, { status: newStatus });
+      if (!res.data?.success) throw new Error('Update failed');
+    } catch (err: any) {
       console.error('Error updating task status:', err);
+      setTaskActionError(err?.response?.data?.error || 'Failed to update task status.');
+      fetchProjectData(); // Revert on fail
     }
   };
 
@@ -83,6 +88,7 @@ export const ProjectsPage: React.FC = () => {
     if (!selectedProject || !newTaskTitle.trim()) return;
 
     try {
+      setTaskActionError(null);
       const res = await api.post('/projects/tasks', {
         project: selectedProject._id,
         title: newTaskTitle,
@@ -96,9 +102,12 @@ export const ProjectsPage: React.FC = () => {
         setShowNewTaskModal(false);
         setNewTaskTitle('');
         setNewTaskDesc('');
+      } else {
+        throw new Error('Create failed');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      setTaskActionError(err?.response?.data?.error || 'Failed to create work item.');
     }
   };
 
@@ -138,6 +147,13 @@ export const ProjectsPage: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
+      {taskActionError && (
+        <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold flex items-center justify-between">
+          <span>{taskActionError}</span>
+          <button onClick={() => setTaskActionError(null)} className="text-rose-500 hover:text-rose-700">✕</button>
+        </div>
+      )}
+
       {/* Top Action & Project Selector Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-2">

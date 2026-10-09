@@ -19,6 +19,7 @@ import {
   Receipt,
   Download,
   Eye,
+  AlertCircle,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore.js';
 import { useParams } from 'react-router-dom';
@@ -26,6 +27,7 @@ import api from '../../services/api.js';
 import { PageHeader } from '../../components/ui/PageHeader.js';
 import { StatusBadge } from '../../components/ui/StatusBadge.js';
 import { ProgressBar } from '../../components/ui/ProgressBar.js';
+import { EmptyState } from '../../components/ui/EmptyState.js';
 import { formatINR } from '../../utils/currency.js';
 import { ReceiptModal } from '../../components/payments/ReceiptModal.js';
 import { downloadReceiptPdf } from '../../utils/pdfGenerator.js';
@@ -40,25 +42,35 @@ export const StudentProfilePage: React.FC = () => {
   const [paymentsSummary, setPaymentsSummary] = useState<any>(null);
   const [paymentsList, setPaymentsList] = useState<any[]>([]);
   const [selectedReceipt, setSelectedReceipt] = useState<IReceiptData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchProfile = async () => {
       try {
+        setError(null);
         if (id) {
           const res = await api.get(`/students/${id}/full-profile`);
           if (res.data?.success) {
             setProfile(res.data.data.profile);
             setDisplayUser(res.data.data.user);
+          } else {
+            setError('Failed to load profile.');
           }
         } else {
           const res = await api.get('/auth/me');
           if (res.data?.success && res.data.user.studentProfile) {
             setProfile(res.data.user.studentProfile);
             setDisplayUser(res.data.user);
+          } else {
+            setError('Failed to load your profile.');
           }
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error('Failed to fetch profile', err);
+        setError(err?.response?.data?.error || 'Failed to fetch profile data.');
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -69,14 +81,26 @@ export const StudentProfilePage: React.FC = () => {
           setPaymentsSummary(res.data.data.summary);
           setPaymentsList(res.data.data.payments);
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error(err);
+        // Only set error if not already set, or just log.
       }
     };
 
     fetchProfile();
     fetchPayments();
   }, []);
+
+  if (error) {
+    return (
+      <EmptyState
+        icon={AlertCircle}
+        title="Failed to Load Profile"
+        description={error}
+        action={{ label: 'Retry', onClick: () => window.location.reload() }}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-200">

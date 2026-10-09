@@ -34,20 +34,43 @@ export const IndustryExposurePage: React.FC = () => {
   ];
 
   const [durationMonths, setDurationMonths] = useState<number>(6);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchPrograms = async () => {
       try {
+        setError(null);
         const res = await api.get('/curriculum/programs');
         if (res.data?.success && res.data.data.length > 0) {
           setDurationMonths(res.data.data[0].durationMonths || 6);
+        } else {
+          setError('Failed to fetch programs.');
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error('Error fetching programs:', err);
+        setError(err?.response?.data?.error || 'Failed to fetch industry exposure programs.');
       }
     };
     fetchPrograms();
   }, []);
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="flex flex-col items-center justify-center p-12 bg-white rounded-2xl border border-rose-100 shadow-sm text-center">
+          <Info className="w-12 h-12 text-rose-500 mb-4" />
+          <h3 className="text-lg font-bold text-slate-900 mb-2">Failed to Load Data</h3>
+          <p className="text-sm text-slate-500 mb-6">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-brand-600 text-white font-bold rounded-lg hover:bg-brand-700 transition"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in duration-200">

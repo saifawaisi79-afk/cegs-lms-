@@ -196,8 +196,7 @@ export const updateStudent = async (req: AuthRequest, res: Response): Promise<vo
         res.status(403).json({ success: false, message: 'Forbidden: Cannot update another student profile' });
         return;
       }
-      // Only allow safe fields
-      const allowed = ['phone', 'dob', 'city', 'state', 'degree', 'college', 'graduationYear', 'preferredTrack'];
+      const allowed = ['phone', 'dob', 'city', 'state', 'degree', 'college', 'graduationYear', 'preferredTrack', 'academicBackground', 'targetRole', 'careerGoals', 'strengths', 'skillGaps'];
       for (const field of allowed) {
         if (req.body[field] !== undefined) (profile as any)[field] = req.body[field];
       }
@@ -215,7 +214,7 @@ export const updateStudent = async (req: AuthRequest, res: Response): Promise<vo
     
     await profile.save();
 
-    if (req.body.name && req.user?.role !== 'student') {
+    if (req.body.name) {
       await User.findByIdAndUpdate(profile.user, { name: req.body.name });
     }
 

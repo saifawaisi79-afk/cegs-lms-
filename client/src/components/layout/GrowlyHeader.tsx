@@ -612,16 +612,18 @@ export const GrowlyHeader: React.FC<GrowlyHeaderProps> = ({
                         <span>My Payments & Fee</span>
                       </button>
 
-                      <button
-                        onClick={() => {
-                          navigate('/settings');
-                          setShowUserMenu(false);
-                        }}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-slate-700 hover:bg-slate-50 hover:text-[#0F8F87] transition text-left font-medium"
-                      >
-                        <Settings className="w-3.5 h-3.5 text-slate-400" />
-                        <span>Account Settings</span>
-                      </button>
+                      {role === 'admin' && (
+                        <button
+                          onClick={() => {
+                            navigate('/admin/settings');
+                            setShowUserMenu(false);
+                          }}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-slate-700 hover:bg-slate-50 hover:text-[#0F8F87] transition text-left font-medium"
+                        >
+                          <Settings className="w-3.5 h-3.5 text-slate-400" />
+                          <span>System Settings</span>
+                        </button>
+                      )}
 
                       {/* Role Switcher in dropdown for lg and below */}
                       <div className="pt-1 border-t border-slate-100 xl:hidden">

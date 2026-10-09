@@ -114,6 +114,17 @@ async function runE2E() {
       await expectStatus(axios.put(`${API_URL}/students/${student1ProfileId}`, { city: 'NY' }, { headers: { Authorization: `Bearer ${mentorToken}` } }), 403);
     });
 
+    await test('Student CAN update their own profile and name', async () => {
+      const res = await axios.put(`${API_URL}/students/${student1ProfileId}`, { 
+        city: 'NY',
+        name: 'Updated Name Student'
+      }, { headers: { Authorization: `Bearer ${student1Token}` } });
+      if (res.data.data.city !== 'NY') throw new Error('Profile city not updated');
+      
+      const meRes = await axios.get(`${API_URL}/auth/me`, { headers: { Authorization: `Bearer ${student1Token}` } });
+      if (meRes.data.user.name !== 'Updated Name Student') throw new Error('User name not updated');
+    });
+
     await test('Student cannot update another student offer', async () => {
       await expectStatus(axios.put(`${API_URL}/placement/offers/${offerId}`, { status: 'Accepted' }, { headers: { Authorization: `Bearer ${student2Token}` } }), 403);
     });
