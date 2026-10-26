@@ -8,6 +8,8 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "seed": "tsx src/scripts/seed.ts",
+    "auth:migrate": "tsx src/scripts/migrate-auth.ts",
+    "create-admin": "tsx src/scripts/create-admin.ts",
     "e2e": "tsx src/scripts/e2e-check.ts"
   },
   "keywords": [
@@ -22,6 +24,7 @@
   "dependencies": {
     "axios": "^1.20.0",
     "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
@@ -35,6 +38,7 @@
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
+    "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
     "@types/jsonwebtoken": "^9.0.8",

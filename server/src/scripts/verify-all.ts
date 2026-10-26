@@ -24,8 +24,8 @@ async function runAudit() {
     // 1. STUDENT AUTHENTICATION
     console.log('--- TEST GROUP 1: STUDENT FLOW ---');
     const studentLogin = await axios.post(`${API_BASE}/auth/login`, {
-      email: 'student@careerexpertglobal.com',
-      password: 'Password123!',
+      email: process.env.TEST_STUDENT_EMAIL || 'student@careerexpertglobal.com',
+      password: process.env.TEST_STUDENT_PASSWORD || process.env.TEST_PASSWORD || '',
     });
     assert(studentLogin.data?.success && !!studentLogin.data?.token, '1. Student login successful');
     const studentToken = studentLogin.data.token;
@@ -83,8 +83,8 @@ async function runAudit() {
     // 6. MENTOR AUTHENTICATION
     console.log('\n--- TEST GROUP 2: MENTOR FLOW ---');
     const mentorLogin = await axios.post(`${API_BASE}/auth/login`, {
-      email: 'mentor@careerexpertglobal.com',
-      password: 'Password123!',
+      email: process.env.TEST_MENTOR_EMAIL || 'mentor@careerexpertglobal.com',
+      password: process.env.TEST_MENTOR_PASSWORD || process.env.TEST_PASSWORD || '',
     });
     assert(mentorLogin.data?.success && !!mentorLogin.data?.token, '7. Mentor login successful');
     const mentorToken = mentorLogin.data.token;
@@ -103,8 +103,8 @@ async function runAudit() {
     // 8. ADMIN AUTHENTICATION
     console.log('\n--- TEST GROUP 3: ADMIN FLOW ---');
     const adminLogin = await axios.post(`${API_BASE}/auth/login`, {
-      email: 'admin@careerexpertglobal.com',
-      password: 'Password123!',
+      email: process.env.TEST_ADMIN_EMAIL || 'admin@careerexpertglobal.com',
+      password: process.env.TEST_ADMIN_PASSWORD || process.env.TEST_PASSWORD || '',
     });
     assert(adminLogin.data?.success && !!adminLogin.data?.token, '9. Admin login successful');
     const adminToken = adminLogin.data.token;

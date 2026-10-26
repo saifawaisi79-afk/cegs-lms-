@@ -49,3 +49,18 @@ export const SkeletonDashboard: React.FC = () => (
     </div>
   </div>
 );
+
+export const LoadingSkeleton: React.FC<{ type?: 'card' | 'table' | 'dashboard'; count?: number }> = ({
+  type = 'card',
+  count = 5,
+}) => {
+  if (type === 'table') return <SkeletonTable rows={count} />;
+  if (type === 'dashboard') return <SkeletonDashboard />;
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {Array.from({ length: count }).map((_, i) => (
+        <SkeletonCard key={i} />
+      ))}
+    </div>
+  );
+};

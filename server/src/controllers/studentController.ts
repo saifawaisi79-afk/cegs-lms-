@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
-import { User } from '../models/User.js';
+import mongoose from 'mongoose';
+import { User, IUser } from '../models/User.js';
 import { StudentProfile } from '../models/Profiles.js';
 import { Track, Module, Lesson } from '../models/Curriculum.js';
 import { Assessment, AssessmentAttempt } from '../models/Assessment.js';
@@ -8,88 +9,120 @@ import { MentorshipSession, SWOTReview } from '../models/Mentorship.js';
 import { Project, Task } from '../models/Project.js';
 import { Interview } from '../models/Placement.js';
 import { LessonProgress } from '../models/LearningProgress.js';
+import { RefreshToken } from '../models/RefreshToken.js';
 import { AuthRequest } from '../middleware/auth.js';
 import { logAuditEvent } from '../utils/auditLogger.js';
+import { generateNextId } from '../services/idService.js';
+import { generateTemporaryPassword } from '../services/passwordService.js';
+import { assertMentorOwnsStudent } from '../utils/ownership.js';
 
-export const getStudents = async (req: Request, res: Response): Promise<void> => {
+export const getStudents = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { track, batch, search } = req.query;
+    const { track, batch, search, status = 'active', page = '1', limit = '50' } = req.query;
 
-    const query: any = { role: 'student' };
-    if (search) {
-      query.$or = [
-        { name: { $regex: search as string, $options: 'i' } },
-        { email: { $regex: search as string, $options: 'i' } },
+    const userQuery: any = { role: 'student' };
+
+    if (status === 'active') {
+      userQuery.isActive = true;
+    } else if (status === 'removed') {
+      userQuery.isActive = false;
+    }
+
+    if (search && typeof search === 'string' && search.trim()) {
+      const s = search.trim();
+      userQuery.$or = [
+        { name: { $regex: s, $options: 'i' } },
+        { email: { $regex: s, $options: 'i' } },
+        { userId: { $regex: s, $options: 'i' } },
       ];
     }
 
-    const users = await User.find(query).select('-password');
-    const userIds = users.map((u) => u._id);
+    const matchingUsers = await User.find(userQuery).select('-password');
+    const userIds = matchingUsers.map((u) => u._id);
 
     const profileQuery: any = { user: { $in: userIds } };
+
+    // Scoping: Mentor sees ONLY students assigned to them; Student sees only themselves!
+    if (req.user?.role === 'mentor') {
+      profileQuery.assignedMentor = req.user._id;
+    } else if (req.user?.role === 'student') {
+      profileQuery.user = req.user._id;
+    }
+
     if (track) profileQuery.track = track;
     if (batch) profileQuery.batch = batch;
 
-    const profiles = await StudentProfile.find(profileQuery)
-      .populate('user', '-password')
-      .populate('track')
-      .populate('batch')
-      .populate('assignedMentor', 'name email avatar');
+    const pageNum = Math.max(1, parseInt(page as string, 10) || 1);
+    const limitNum = Math.max(1, parseInt(limit as string, 10) || 50);
+    const skip = (pageNum - 1) * limitNum;
 
-    res.status(200).json({ success: true, count: profiles.length, data: profiles });
+    const [total, profiles] = await Promise.all([
+      StudentProfile.countDocuments(profileQuery),
+      StudentProfile.find(profileQuery)
+        .populate('user', '-password')
+        .populate('track')
+        .populate('batch')
+        .populate('assignedMentor', 'name email avatar userId')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      total,
+      page: pageNum,
+      limit: limitNum,
+      count: profiles.length,
+      data: profiles,
+    });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
+const getParamId = (id: string | string[] | undefined): string => (Array.isArray(id) ? id[0] || '' : id || '');
+
 export const getStudentById = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const profile = await StudentProfile.findOne({
-      $or: [{ _id: req.params.id }, { user: req.params.id }],
-    })
+    if (!req.user) {
+      res.status(401).json({ success: false, message: 'Unauthorized' });
+      return;
+    }
+
+    const profile = await assertMentorOwnsStudent(req.user, getParamId(req.params.id));
+
+    const populated = await StudentProfile.findById(profile._id)
       .populate('user', '-password')
       .populate('track')
       .populate('batch')
-      .populate('assignedMentor', 'name email avatar');
+      .populate('assignedMentor', 'name email avatar userId');
 
-    if (!profile) {
-      res.status(404).json({ success: false, message: 'Student profile not found.' });
-      return;
-    }
-
-    if (req.user?.role === 'student' && profile.user._id.toString() !== req.user._id.toString()) {
-      res.status(403).json({ success: false, message: 'Forbidden' });
-      return;
-    }
-    if (req.user?.role === 'mentor' && profile.assignedMentor?._id?.toString() !== req.user._id.toString()) {
-      res.status(403).json({ success: false, message: 'Forbidden: Not your assigned student' });
-      return;
-    }
-
-    res.status(200).json({ success: true, data: profile });
+    res.status(200).json({ success: true, data: populated });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ success: false, message: error.message });
   }
 };
 
 export const getStudentFullProfile = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const studentUserId = req.params.id;
-    const profile = await StudentProfile.findOne({
-      $or: [{ _id: studentUserId }, { user: studentUserId }],
-    })
-      .populate('user', '-password')
-      .populate('track')
-      .populate('batch')
-      .populate('assignedMentor', 'name email avatar');
-
-    if (!profile) {
-      res.status(404).json({ success: false, message: 'Student profile not found.' });
+    if (!req.user) {
+      res.status(401).json({ success: false, message: 'Unauthorized' });
       return;
     }
 
-    if (req.user?.role === 'mentor' && profile.assignedMentor?._id?.toString() !== req.user?._id.toString()) {
-      res.status(403).json({ success: false, message: 'Forbidden: Not your assigned student' });
+    const studentIdentifier = getParamId(req.params.id);
+    const baseProfile = await assertMentorOwnsStudent(req.user, studentIdentifier);
+
+    const profile = await StudentProfile.findById(baseProfile._id)
+      .populate('user', '-password')
+      .populate('track')
+      .populate('batch')
+      .populate('assignedMentor', 'name email avatar userId');
+
+    if (!profile) {
+      res.status(404).json({ success: false, message: 'Student profile not found.' });
       return;
     }
 
@@ -124,20 +157,57 @@ export const getStudentFullProfile = async (req: AuthRequest, res: Response): Pr
       },
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ success: false, message: error.message });
   }
 };
 
 export const createStudent = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { name, email, password, phone, trackId, batchId, mentorId, preferredTrack } = req.body;
-
-    const existingUser = await User.findOne({ email: email.toLowerCase() });
-    if (existingUser) {
-      res.status(400).json({ success: false, message: 'User with this email already exists.' });
+    if (!req.user) {
+      res.status(401).json({ success: false, message: 'Unauthorized' });
       return;
     }
 
+    const { name, email, phone, trackId, batchId, preferredTrack, mentorId } = req.body;
+
+    let assignedMentorId: mongoose.Types.ObjectId;
+
+    if (req.user.role === 'mentor') {
+      // Mentor always creates their own student
+      assignedMentorId = req.user._id;
+    } else if (req.user.role === 'admin') {
+      // Admin must choose an active mentor
+      if (!mentorId) {
+        res.status(400).json({ success: false, message: 'mentorId is required when enrolling a student as admin.' });
+        return;
+      }
+      const targetMentor = await User.findOne({
+        $or: [
+          mongoose.Types.ObjectId.isValid(mentorId) ? { _id: mentorId } : null,
+          { userId: mentorId.toUpperCase().trim() },
+        ].filter(Boolean) as any,
+        role: 'mentor',
+        isActive: true,
+      });
+
+      if (!targetMentor) {
+        res.status(400).json({ success: false, message: 'Assigned mentor not found or is currently inactive.' });
+        return;
+      }
+      assignedMentorId = targetMentor._id;
+    } else {
+      res.status(403).json({ success: false, message: 'Forbidden' });
+      return;
+    }
+
+    const existingUser = await User.findOne({ email: email.toLowerCase().trim() });
+    if (existingUser) {
+      res.status(409).json({ success: false, message: 'A user with this email already exists.' });
+      return;
+    }
+
+    // Resolve track
     let resolvedTrackId = trackId;
     if (!resolvedTrackId && preferredTrack) {
       const foundTrack = await Track.findOne({ name: { $regex: preferredTrack, $options: 'i' } });
@@ -148,36 +218,216 @@ export const createStudent = async (req: AuthRequest, res: Response): Promise<vo
       if (defaultTrack) resolvedTrackId = defaultTrack._id;
     }
 
-    let resolvedMentorId = mentorId;
-    if (!resolvedMentorId) {
-      const mentorUser = await User.findOne({ role: 'mentor' });
-      if (mentorUser) resolvedMentorId = mentorUser._id;
-    }
+    // Generate credentials
+    const temporaryPassword = generateTemporaryPassword();
+    const userId = await generateNextId('STD');
 
-    const user = await User.create({
-      name,
-      email: email.toLowerCase(),
-      password: password || 'Password123!',
-      role: 'student',
-      isFirstLogin: true,
-    });
+    let user;
+    try {
+      user = await User.create({
+        name: name.trim(),
+        email: email.toLowerCase().trim(),
+        password: temporaryPassword,
+        role: 'student',
+        userId,
+        mustChangePassword: true,
+        isFirstLogin: true,
+        createdBy: req.user._id,
+      });
+    } catch (err: any) {
+      if (err.code === 11000) {
+        res.status(409).json({ success: false, message: 'A user with this email or ID already exists.' });
+        return;
+      }
+      throw err;
+    }
 
     const studentProfile = await StudentProfile.create({
       user: user._id,
       phone: phone || '',
       track: resolvedTrackId || null,
       batch: batchId || null,
-      assignedMentor: resolvedMentorId || null,
+      assignedMentor: assignedMentorId,
       preferredTrack: preferredTrack || 'Full Stack Development',
-      rollNumber: `CEGS-${Math.floor(1000 + Math.random() * 9000)}`,
+      rollNumber: userId, // Set rollNumber equal to userId
     });
 
     await logAuditEvent(req, 'CREATE_STUDENT', 'STUDENTS', studentProfile._id.toString(), {
-      email,
-      name,
+      userId,
+      email: user.email,
+      name: user.name,
+      assignedMentor: assignedMentorId,
     });
 
-    res.status(201).json({ success: true, data: { user, studentProfile } });
+    res.setHeader('Cache-Control', 'no-store');
+    res.status(201).json({
+      success: true,
+      data: {
+        id: studentProfile._id,
+        _id: studentProfile._id,
+        userId: user.userId,
+        user: {
+          id: user._id,
+          _id: user._id,
+          userId: user.userId,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          isActive: user.isActive,
+          createdAt: user.createdAt,
+        },
+        studentProfile,
+      },
+      credentials: {
+        userId: user.userId,
+        email: user.email,
+        temporaryPassword,
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const bulkCreateStudents = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'mentor')) {
+      res.status(403).json({ success: false, message: 'Forbidden' });
+      return;
+    }
+
+    const rawList = Array.isArray(req.body) ? req.body : req.body.students;
+    if (!Array.isArray(rawList) || rawList.length === 0) {
+      res.status(400).json({ success: false, message: 'List of students is required.' });
+      return;
+    }
+
+    if (rawList.length > 100) {
+      res.status(400).json({ success: false, message: 'Cannot process more than 100 students in a single batch.' });
+      return;
+    }
+
+    const results: any[] = [];
+    let defaultTrack = await Track.findOne();
+
+    for (let i = 0; i < rawList.length; i++) {
+      const row = rawList[i];
+      const rowNumber = i + 1;
+
+      try {
+        if (!row.name || !row.email) {
+          results.push({ row: rowNumber, success: false, status: 'failed', email: row.email || '', error: 'Name and email are required' });
+          continue;
+        }
+
+        const email = String(row.email).toLowerCase().trim();
+        const existing = await User.findOne({ email });
+        if (existing) {
+          results.push({ row: rowNumber, success: false, status: 'failed', email, error: 'Email already exists' });
+          continue;
+        }
+
+        let assignedMentorId: mongoose.Types.ObjectId;
+        if (req.user.role === 'mentor') {
+          assignedMentorId = req.user._id;
+        } else {
+          const targetId = row.mentorId || req.body.defaultMentorId;
+          if (!targetId) {
+            results.push({ row: rowNumber, success: false, status: 'failed', email, error: 'Mentor selection is required for admin' });
+            continue;
+          }
+          const mentor = await User.findOne({
+            $or: [
+              mongoose.Types.ObjectId.isValid(targetId) ? { _id: targetId } : null,
+              { userId: targetId.toUpperCase().trim() },
+            ].filter(Boolean) as any,
+            role: 'mentor',
+            isActive: true,
+          });
+          if (!mentor) {
+            results.push({ row: rowNumber, success: false, status: 'failed', email, error: 'Selected mentor not found or inactive' });
+            continue;
+          }
+          assignedMentorId = mentor._id;
+        }
+
+        let resolvedTrackId = row.trackId;
+        if (!resolvedTrackId && row.preferredTrack) {
+          const foundTrack = await Track.findOne({ name: { $regex: row.preferredTrack, $options: 'i' } });
+          if (foundTrack) resolvedTrackId = foundTrack._id;
+        }
+        if (!resolvedTrackId && defaultTrack) {
+          resolvedTrackId = defaultTrack._id;
+        }
+
+        const temporaryPassword = generateTemporaryPassword();
+        const userId = await generateNextId('STD');
+
+        const user = await User.create({
+          name: row.name.trim(),
+          email,
+          password: temporaryPassword,
+          role: 'student',
+          userId,
+          mustChangePassword: true,
+          isFirstLogin: true,
+          createdBy: req.user._id,
+        });
+
+        const studentProfile = await StudentProfile.create({
+          user: user._id,
+          phone: row.phone || '',
+          track: resolvedTrackId || null,
+          batch: row.batchId || null,
+          assignedMentor: assignedMentorId,
+          preferredTrack: row.preferredTrack || 'Full Stack Development',
+          rollNumber: userId,
+        });
+
+        results.push({
+          row: rowNumber,
+          success: true,
+          status: 'created',
+          userId: user.userId,
+          email: user.email,
+          credentials: {
+            userId: user.userId,
+            email: user.email,
+            temporaryPassword,
+          },
+        });
+      } catch (err: any) {
+        results.push({
+          row: rowNumber,
+          success: false,
+          status: 'failed',
+          email: row.email,
+          error: err.message || 'Failed to enroll student',
+        });
+      }
+    }
+
+    const createdCount = results.filter((r) => r.success).length;
+    const failedCount = results.filter((r) => !r.success).length;
+
+    await logAuditEvent(req, 'BULK_CREATE_STUDENTS', 'STUDENTS', req.user._id.toString(), {
+      total: rawList.length,
+      created: createdCount,
+      failed: failedCount,
+    });
+
+    res.setHeader('Cache-Control', 'no-store');
+    res.status(200).json({
+      success: true,
+      createdCount,
+      failedCount,
+      summary: {
+        total: rawList.length,
+        created: createdCount,
+        failed: failedCount,
+      },
+      results,
+    });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -185,44 +435,214 @@ export const createStudent = async (req: AuthRequest, res: Response): Promise<vo
 
 export const updateStudent = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const profile = await StudentProfile.findById(req.params.id);
-    if (!profile) {
-      res.status(404).json({ success: false, message: 'Student profile not found.' });
+    if (!req.user) {
+      res.status(401).json({ success: false, message: 'Unauthorized' });
       return;
     }
 
-    if (req.user?.role === 'student') {
-      if (profile.user.toString() !== req.user._id.toString()) {
-        res.status(403).json({ success: false, message: 'Forbidden: Cannot update another student profile' });
-        return;
-      }
-      const allowed = ['phone', 'dob', 'city', 'state', 'degree', 'college', 'graduationYear', 'preferredTrack', 'academicBackground', 'targetRole', 'careerGoals', 'strengths', 'skillGaps'];
-      for (const field of allowed) {
-        if (req.body[field] !== undefined) (profile as any)[field] = req.body[field];
-      }
-    } else if (req.user?.role === 'admin') {
-      const forbidden = ['user', '_id', 'role'];
-      for (const key of Object.keys(req.body)) {
-        if (!forbidden.includes(key)) {
-          (profile as any)[key] = req.body[key];
-        }
-      }
-    } else {
-      res.status(403).json({ success: false, message: 'Forbidden' });
-      return;
+    const profile = await assertMentorOwnsStudent(req.user, getParamId(req.params.id));
+
+    const allowed = [
+      'phone',
+      'dob',
+      'city',
+      'state',
+      'degree',
+      'college',
+      'graduationYear',
+      'preferredTrack',
+      'academicBackground',
+      'targetRole',
+      'careerGoals',
+      'strengths',
+      'skillGaps',
+    ];
+
+    if (req.user.role === 'admin' || req.user.role === 'mentor') {
+      allowed.push('track', 'batch');
     }
-    
+
+    for (const field of allowed) {
+      if (req.body[field] !== undefined) {
+        (profile as any)[field] = req.body[field];
+      }
+    }
+
     await profile.save();
 
     if (req.body.name) {
-      await User.findByIdAndUpdate(profile.user, { name: req.body.name });
+      await User.findByIdAndUpdate(profile.user, { name: req.body.name.trim() });
     }
 
     await logAuditEvent(req, 'UPDATE_STUDENT', 'STUDENTS', profile._id.toString(), req.body);
 
-    res.status(200).json({ success: true, data: profile });
+    const updated = await StudentProfile.findById(profile._id)
+      .populate('user', '-password')
+      .populate('track')
+      .populate('batch')
+      .populate('assignedMentor', 'name email avatar userId');
+
+    res.status(200).json({ success: true, data: updated });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ success: false, message: error.message });
+  }
+};
+
+export const deleteStudent = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, message: 'Unauthorized' });
+      return;
+    }
+
+    const profile = await assertMentorOwnsStudent(req.user, getParamId(req.params.id));
+    const user = await User.findById(profile.user);
+
+    if (!user) {
+      res.status(404).json({ success: false, message: 'Student account not found.' });
+      return;
+    }
+
+    // Soft remove
+    user.isActive = false;
+    user.removedAt = new Date();
+    user.removedBy = req.user._id;
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
+    await user.save();
+
+    // Revoke sessions immediately
+    await RefreshToken.updateMany({ user: user._id }, { revokedAt: new Date() });
+
+    await logAuditEvent(req, 'REMOVE_STUDENT', 'STUDENTS', user._id.toString(), {
+      userId: user.userId,
+      email: user.email,
+    });
+
+    res.status(200).json({ success: true, message: 'Student deactivated successfully.' });
+  } catch (error: any) {
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ success: false, message: error.message });
+  }
+};
+
+export const restoreStudent = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, message: 'Unauthorized' });
+      return;
+    }
+
+    const profile = await assertMentorOwnsStudent(req.user, getParamId(req.params.id));
+    const user = await User.findById(profile.user);
+
+    if (!user) {
+      res.status(404).json({ success: false, message: 'Student account not found.' });
+      return;
+    }
+
+    user.isActive = true;
+    user.removedAt = undefined;
+    user.removedBy = undefined;
+    await user.save();
+
+    await logAuditEvent(req, 'RESTORE_STUDENT', 'STUDENTS', user._id.toString(), {
+      userId: user.userId,
+      email: user.email,
+    });
+
+    res.status(200).json({ success: true, message: 'Student restored successfully.', data: user });
+  } catch (error: any) {
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ success: false, message: error.message });
+  }
+};
+
+export const resetStudentPassword = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, message: 'Unauthorized' });
+      return;
+    }
+
+    const profile = await assertMentorOwnsStudent(req.user, getParamId(req.params.id));
+    const user = await User.findById(profile.user);
+
+    if (!user) {
+      res.status(404).json({ success: false, message: 'Student account not found.' });
+      return;
+    }
+
+    const temporaryPassword = generateTemporaryPassword();
+    user.password = temporaryPassword;
+    user.mustChangePassword = true;
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
+    await user.save();
+
+    // Revoke all sessions immediately
+    await RefreshToken.updateMany({ user: user._id }, { revokedAt: new Date() });
+
+    await logAuditEvent(req, 'RESET_STUDENT_PASSWORD', 'STUDENTS', user._id.toString(), {
+      userId: user.userId,
+      email: user.email,
+    });
+
+    res.setHeader('Cache-Control', 'no-store');
+    res.status(200).json({
+      success: true,
+      message: 'Temporary password generated successfully.',
+      credentials: {
+        userId: user.userId,
+        email: user.email,
+        temporaryPassword,
+      },
+    });
+  } catch (error: any) {
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ success: false, message: error.message });
+  }
+};
+
+export const reassignStudent = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user || req.user.role !== 'admin') {
+      res.status(403).json({ success: false, message: 'Forbidden: Admin access required.' });
+      return;
+    }
+
+    const { mentorId } = req.body;
+    if (!mentorId) {
+      res.status(400).json({ success: false, message: 'Target mentorId is required.' });
+      return;
+    }
+
+    const targetMentor = await User.findOne({
+      $or: [
+        mongoose.Types.ObjectId.isValid(mentorId) ? { _id: mentorId } : null,
+        { userId: mentorId.toUpperCase().trim() },
+      ].filter(Boolean) as any,
+      role: 'mentor',
+      isActive: true,
+    });
+
+    if (!targetMentor) {
+      res.status(400).json({ success: false, message: 'Target mentor not found or inactive.' });
+      return;
+    }
+
+    const profile = await assertMentorOwnsStudent(req.user, getParamId(req.params.id));
+    profile.assignedMentor = targetMentor._id;
+    await profile.save();
+
+    await logAuditEvent(req, 'REASSIGN_STUDENT', 'STUDENTS', profile._id.toString(), {
+      studentUserId: profile.rollNumber,
+      newMentor: targetMentor.userId,
+    });
+
+    res.status(200).json({ success: true, message: 'Student reassigned successfully.', data: profile });
+  } catch (error: any) {
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ success: false, message: error.message });
   }
 };
 
@@ -244,7 +664,7 @@ export const saveOnboarding = async (req: AuthRequest, res: Response): Promise<v
 
     let profile = await StudentProfile.findOne({ user: req.user._id });
     if (!profile) {
-      profile = new StudentProfile({ user: req.user._id });
+      profile = new StudentProfile({ user: req.user._id, rollNumber: req.user.userId || '' });
     }
 
     if (personalInfo) {
@@ -311,7 +731,7 @@ export const getStudentDashboardData = async (req: AuthRequest, res: Response): 
     if (!profile) {
       profile = await StudentProfile.create({
         user: userId,
-        rollNumber: `CEGS-${Math.floor(1000 + Math.random() * 9000)}`,
+        rollNumber: req.user.userId || `STD${Math.floor(1000 + Math.random() * 9000)}`,
         onboardingCompleted: true,
         onboardingStep: 5,
         currentMonth: 3,

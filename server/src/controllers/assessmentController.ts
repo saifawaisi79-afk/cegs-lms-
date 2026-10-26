@@ -130,15 +130,24 @@ export const submitAssessment = async (req: AuthRequest, res: Response): Promise
   }
 };
 
+import { assertMentorOwnsStudent } from '../utils/ownership.js';
+
 export const getStudentAssessmentAnalytics = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const studentId = req.params.studentId || req.user?._id;
-    if (!studentId) {
+    const rawParam = req.params.studentId;
+    const studentIdentifier = (Array.isArray(rawParam) ? rawParam[0] : rawParam) || (req.user?._id ? String(req.user._id) : '');
+    if (!studentIdentifier) {
       res.status(400).json({ success: false, message: 'Student ID required.' });
       return;
     }
 
-    const attempts = await AssessmentAttempt.find({ student: studentId })
+    let actualStudentUserId: any = studentIdentifier;
+    if (req.user) {
+      const profile = await assertMentorOwnsStudent(req.user, studentIdentifier);
+      actualStudentUserId = profile.user;
+    }
+
+    const attempts = await AssessmentAttempt.find({ student: actualStudentUserId })
       .populate('assessment')
       .sort({ submittedAt: 1 });
 
@@ -178,6 +187,7 @@ export const getStudentAssessmentAnalytics = async (req: AuthRequest, res: Respo
       },
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ success: false, message: error.message });
   }
 };

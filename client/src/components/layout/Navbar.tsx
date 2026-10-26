@@ -32,7 +32,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, role, logout, switchRoleDemo } = useAuthStore();
+  const { user, role, logout } = useAuthStore();
   const [notifications, setNotifications] = useState<INotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -158,6 +158,18 @@ export const Navbar: React.FC<NavbarProps> = ({
         return { category: 'Account', title: 'Profile & Portfolio' };
       case '/admin/settings':
         return { category: 'Account', title: 'System Settings' };
+      case '/months':
+        return { category: 'Curriculum', title: '6-Month Career Roadmap' };
+      case '/career-tracks':
+        return { category: 'Curriculum', title: '5 Core Career Tracks' };
+      case '/industry-exposure':
+        return { category: 'Curriculum', title: 'Industry Exposure' };
+      case '/packages':
+        return { category: 'Curriculum', title: 'Program Packages' };
+      case '/payments':
+        return { category: 'Progress', title: 'Fee Payments & Invoices' };
+      case '/admin/payments':
+        return { category: 'Operations', title: 'Payments & Revenue Central' };
       default:
         return { category: 'CEGS LMS', title: 'Platform Portal' };
     }
@@ -188,8 +200,23 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
       </div>
 
-      {/* Right Controls: Command Search Trigger, Role switcher, Messages, Notifications, Profile */}
+      {/* Right Controls: Command Search Trigger, User Role Badge, Notifications, Profile */}
       <div className="flex items-center gap-2 sm:gap-3">
+        {/* User Role Badge */}
+        <div className="hidden sm:flex items-center">
+          <span
+            className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold ${
+              role === 'admin'
+                ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                : role === 'mentor'
+                ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                : 'bg-teal-50 text-teal-700 border border-teal-200'
+            }`}
+          >
+            {role === 'admin' ? 'Administrator' : role === 'mentor' ? 'Faculty Mentor' : 'Candidate'}
+          </span>
+        </div>
+
         {/* Search trigger (Ctrl + K) */}
         <button
           onClick={onOpenCommandPalette}
@@ -197,7 +224,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         >
           <div className="flex items-center gap-2">
             <Search className="w-3.5 h-3.5 text-slate-400" />
-            <span>Search anything...</span>
+            <span>Search...</span>
           </div>
           <kbd className="px-1.5 py-0.5 text-[10px] font-semibold text-slate-500 bg-white border border-slate-200 rounded-md shadow-sm">
             Ctrl K
@@ -212,40 +239,6 @@ export const Navbar: React.FC<NavbarProps> = ({
         >
           <Search className="w-5 h-5" />
         </button>
-
-        {/* Role Switcher Badge / Quick Switch */}
-        <div className="hidden xl:flex items-center bg-slate-100 p-1 rounded-xl text-xs font-semibold">
-          <button
-            onClick={() => switchRoleDemo('student')}
-            className={`px-2.5 py-1 rounded-lg transition ${
-              role === 'student'
-                ? 'bg-white text-brand-700 shadow-sm font-bold'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Student
-          </button>
-          <button
-            onClick={() => switchRoleDemo('mentor')}
-            className={`px-2.5 py-1 rounded-lg transition ${
-              role === 'mentor'
-                ? 'bg-white text-brand-700 shadow-sm font-bold'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Mentor
-          </button>
-          <button
-            onClick={() => switchRoleDemo('admin')}
-            className={`px-2.5 py-1 rounded-lg transition ${
-              role === 'admin'
-                ? 'bg-white text-brand-700 shadow-sm font-bold'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Admin
-          </button>
-        </div>
 
         {/* Quick link to Messages */}
         <button

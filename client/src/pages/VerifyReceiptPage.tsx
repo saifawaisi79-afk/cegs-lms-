@@ -18,16 +18,10 @@ import { StatusBadge } from '../components/ui/StatusBadge.js';
 
 interface IVerificationData {
   receiptNumber: string;
-  paymentId: string;
   studentName: string;
   programTitle: string;
-  trackName: string;
   paymentDate: string;
-  totalAmount: number;
-  amountPaid: number;
-  balanceAmount: number;
   paymentStatus: string;
-  paymentMethod: string;
   isVerified: boolean;
   issuer: string;
   verifiedAt: string;
@@ -151,11 +145,6 @@ export const VerifyReceiptPage: React.FC = () => {
                   </div>
 
                   <div className="py-2.5 flex justify-between items-center">
-                    <span className="text-slate-500">Payment ID</span>
-                    <span className="font-mono font-bold text-slate-700">{data.paymentId}</span>
-                  </div>
-
-                  <div className="py-2.5 flex justify-between items-center">
                     <span className="text-slate-500">Candidate / Student</span>
                     <span className="font-bold text-slate-900">{data.studentName}</span>
                   </div>
@@ -166,11 +155,6 @@ export const VerifyReceiptPage: React.FC = () => {
                   </div>
 
                   <div className="py-2.5 flex justify-between items-center">
-                    <span className="text-slate-500">Career Track</span>
-                    <span className="font-bold text-brand-700">{data.trackName}</span>
-                  </div>
-
-                  <div className="py-2.5 flex justify-between items-center">
                     <span className="text-slate-500">Payment Date</span>
                     <span className="font-bold text-slate-800">
                       {new Date(data.paymentDate).toLocaleDateString('en-IN', {
@@ -178,13 +162,6 @@ export const VerifyReceiptPage: React.FC = () => {
                         month: 'short',
                         year: 'numeric',
                       })}
-                    </span>
-                  </div>
-
-                  <div className="py-2.5 flex justify-between items-center">
-                    <span className="text-slate-500">Total Transaction Amount</span>
-                    <span className="font-extrabold text-slate-900 text-sm">
-                      {formatINR(data.totalAmount)}
                     </span>
                   </div>
 

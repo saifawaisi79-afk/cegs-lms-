@@ -25,8 +25,8 @@ async function runAudit() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        email: 'student@careerexpertglobal.com',
-        password: 'Password123!',
+        email: process.env.TEST_STUDENT_EMAIL || 'student@careerexpertglobal.com',
+        password: process.env.TEST_STUDENT_PASSWORD || process.env.TEST_PASSWORD || '',
       }),
     });
     const studentLogin = await studentLoginRes.json();
@@ -105,8 +105,8 @@ async function runAudit() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        email: 'mentor@careerexpertglobal.com',
-        password: 'Password123!',
+        email: process.env.TEST_MENTOR_EMAIL || 'mentor@careerexpertglobal.com',
+        password: process.env.TEST_MENTOR_PASSWORD || process.env.TEST_PASSWORD || '',
       }),
     });
     const mentorLogin = await mentorLoginRes.json();
@@ -136,8 +136,8 @@ async function runAudit() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        email: 'admin@careerexpertglobal.com',
-        password: 'Password123!',
+        email: process.env.TEST_ADMIN_EMAIL || 'admin@careerexpertglobal.com',
+        password: process.env.TEST_ADMIN_PASSWORD || process.env.TEST_PASSWORD || '',
       }),
     });
     const adminLogin = await adminLoginRes.json();

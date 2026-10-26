@@ -15,11 +15,11 @@ const queryClient = new QueryClient({
 });
 
 export const App: React.FC = () => {
-  const { fetchCurrentUser } = useAuthStore();
+  const { bootstrap } = useAuthStore();
 
   useEffect(() => {
-    fetchCurrentUser();
-  }, [fetchCurrentUser]);
+    bootstrap();
+  }, [bootstrap]);
 
   return (
     <QueryClientProvider client={queryClient}>

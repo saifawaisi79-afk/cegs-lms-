@@ -5,11 +5,16 @@ import { StudentProfile } from '../models/Profiles.js';
 import { AuthRequest } from '../middleware/auth.js';
 import { logAuditEvent } from '../utils/auditLogger.js';
 
+import { assertMentorOwnsStudent, getMentorStudentUserIds } from '../utils/ownership.js';
+
 export const getCertificates = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const query: any = {};
     if (req.user?.role === 'student') {
       query.student = req.user._id;
+    } else if (req.user?.role === 'mentor') {
+      const menteeUserIds = await getMentorStudentUserIds(req.user);
+      query.student = { $in: menteeUserIds || [] };
     }
 
     const certificates = await Certificate.find(query)
@@ -19,7 +24,8 @@ export const getCertificates = async (req: AuthRequest, res: Response): Promise<
 
     res.status(200).json({ success: true, count: certificates.length, data: certificates });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ success: false, message: error.message });
   }
 };
 
@@ -78,6 +84,10 @@ export const issueCertificate = async (req: AuthRequest, res: Response): Promise
   try {
     const { studentId, candidateName, trackName, grade, skillsCertified } = req.body;
 
+    if (req.user?.role === 'mentor') {
+      await assertMentorOwnsStudent(req.user, studentId);
+    }
+
     const user = await User.findById(studentId);
     if (!user) {
       res.status(404).json({ success: false, message: 'Candidate not found.' });
@@ -111,6 +121,7 @@ export const issueCertificate = async (req: AuthRequest, res: Response): Promise
 
     res.status(201).json({ success: true, data: cert });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ success: false, message: error.message });
   }
 };

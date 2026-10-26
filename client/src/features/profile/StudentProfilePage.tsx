@@ -20,9 +20,11 @@ import {
   Download,
   Eye,
   AlertCircle,
+  Key,
+  LogOut,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore.js';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../services/api.js';
 import { PageHeader } from '../../components/ui/PageHeader.js';
 import { StatusBadge } from '../../components/ui/StatusBadge.js';
@@ -34,7 +36,8 @@ import { downloadReceiptPdf } from '../../utils/pdfGenerator.js';
 import { IReceiptData } from '../../types/index.js';
 
 export const StudentProfilePage: React.FC = () => {
-  const { user } = useAuthStore();
+  const navigate = useNavigate();
+  const { user, logout } = useAuthStore();
   const { id } = useParams<{ id: string }>();
   const [profile, setProfile] = useState<any>(null);
   const [displayUser, setDisplayUser] = useState<any>(user || null);
@@ -125,10 +128,11 @@ export const StudentProfilePage: React.FC = () => {
               <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
                 {displayUser?.name}
               </h2>
-              <StatusBadge label="Full Stack Track" variant="teal" size="sm" />
+              <StatusBadge label={(displayUser?.role || 'student').toUpperCase()} variant="teal" size="sm" />
+              <StatusBadge label={`ID: ${displayUser?.userId || 'N/A'}`} variant="neutral" size="sm" />
             </div>
             <p className="text-xs sm:text-sm text-slate-500 font-semibold">
-              {profile?.targetRole || 'Full Stack Software Engineer'} • Roll No: {profile?.rollNumber || 'CEGS-2026-001'}
+              {profile?.targetRole || 'Full Stack Software Engineer'} • Roll No: {profile?.rollNumber || displayUser?.userId || 'N/A'}
             </p>
 
             <div className="flex flex-wrap items-center gap-4 text-xs text-foreground-muted pt-1">
@@ -145,6 +149,28 @@ export const StudentProfilePage: React.FC = () => {
                 <span>{profile?.city || 'Hyderabad'}, {profile?.state || 'Telangana'}</span>
               </span>
             </div>
+
+            {(!id || displayUser?.id === user?.id) && (
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  onClick={() => navigate('/change-password')}
+                  className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition flex items-center gap-1.5 shadow-2xs"
+                >
+                  <Key className="w-3.5 h-3.5 text-slate-500" />
+                  <span>Change Password</span>
+                </button>
+                <button
+                  onClick={() => {
+                    logout();
+                    navigate('/login');
+                  }}
+                  className="px-3 py-1.5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold transition flex items-center gap-1.5 shadow-2xs"
+                >
+                  <LogOut className="w-3.5 h-3.5 text-rose-600" />
+                  <span>Log Out</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
 

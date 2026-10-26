@@ -15,6 +15,8 @@ import { Notification, CalendarEvent, Conversation, Message } from '../models/Co
 import { AuditLog } from '../models/AuditLog.js';
 import { Payment } from '../models/Payment.js';
 import { CourseFee } from '../models/CourseFee.js';
+import { generateNextId, setCounterMinSeq } from '../services/idService.js';
+import { generateTemporaryPassword } from '../services/passwordService.js';
 
 export const seedPaymentsIfEmpty = async () => {
   const existingPayments = await Payment.countDocuments();
@@ -207,60 +209,89 @@ export const seedDatabase = async () => {
   }
 
   console.log('✨ Creating Core Users (1 Admin, 2 Mentors, 14 Students across 5 Tracks)...');
+  const adminId = await generateNextId('ADM');
+  const adminPassword = generateTemporaryPassword();
   const adminUser = await User.create({
+    userId: adminId,
     name: 'CEGS Administrator',
     email: 'admin@careerexpertglobal.com',
-    password: 'Password123!',
+    password: adminPassword,
     role: 'admin',
     avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
     isActive: true,
+    mustChangePassword: false,
   });
 
+  const mentor1Id = await generateNextId('MNTR');
+  const mentor1Password = generateTemporaryPassword();
   const mentorUser = await User.create({
+    userId: mentor1Id,
     name: 'Rajesh Ramanathan',
     email: 'mentor@careerexpertglobal.com',
-    password: 'Password123!',
+    password: mentor1Password,
     role: 'mentor',
     avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
     isActive: true,
+    mustChangePassword: true,
+    createdBy: adminUser._id,
   });
 
+  const mentor2Id = await generateNextId('MNTR');
+  const mentor2Password = generateTemporaryPassword();
   const mentor2User = await User.create({
+    userId: mentor2Id,
     name: 'Dr. Ananya Roy',
     email: 'ananya.roy@careerexpertglobal.com',
-    password: 'Password123!',
+    password: mentor2Password,
     role: 'mentor',
     avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150',
     isActive: true,
+    mustChangePassword: true,
+    createdBy: adminUser._id,
   });
 
   // Primary demo student
+  const studentId = await generateNextId('STD');
+  const studentPassword = generateTemporaryPassword();
   const studentUser = await User.create({
+    userId: studentId,
     name: 'Saif Khan',
     email: 'student@careerexpertglobal.com',
-    password: 'Password123!',
+    password: studentPassword,
     role: 'student',
     avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150',
     isActive: true,
     isFirstLogin: false,
+    mustChangePassword: true,
+    createdBy: mentorUser._id,
   });
 
+  const peer1Id = await generateNextId('STD');
+  const peer1Password = generateTemporaryPassword();
   const peerStudent1 = await User.create({
+    userId: peer1Id,
     name: 'Priya Sharma',
     email: 'priya.sharma@example.com',
-    password: 'Password123!',
+    password: peer1Password,
     role: 'student',
     avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
     isActive: true,
+    mustChangePassword: true,
+    createdBy: mentorUser._id,
   });
 
+  const peer2Id = await generateNextId('STD');
+  const peer2Password = generateTemporaryPassword();
   const peerStudent2 = await User.create({
+    userId: peer2Id,
     name: 'Rahul Verma',
     email: 'rahul.verma@example.com',
-    password: 'Password123!',
+    password: peer2Password,
     role: 'student',
     avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150',
     isActive: true,
+    mustChangePassword: true,
+    createdBy: mentorUser._id,
   });
 
   // Additional 11 realistic students distributed across AI, Testing, Analytics, and Cloud tracks
@@ -379,16 +410,21 @@ export const seedDatabase = async () => {
 
   const createdExtraUsers: any[] = [];
   for (const cs of candidateSeeds) {
+    const candidateId = await generateNextId('STD');
+    const candidatePassword = generateTemporaryPassword();
     const u = await User.create({
+      userId: candidateId,
       name: cs.name,
       email: cs.email,
-      password: 'Password123!',
+      password: candidatePassword,
       role: 'student',
       avatar: cs.avatar,
       isActive: true,
       isFirstLogin: false,
+      mustChangePassword: true,
+      createdBy: mentorUser._id,
     });
-    createdExtraUsers.push({ user: u, seed: cs });
+    createdExtraUsers.push({ user: u, seed: cs, temporaryPassword: candidatePassword });
   }
 
   console.log('✨ Creating Program and Tracks...');
@@ -532,7 +568,7 @@ export const seedDatabase = async () => {
     batch: batch._id,
     track: fsdTrack._id,
     assignedMentor: mentorUser._id,
-    rollNumber: 'CEGS-2025-0182',
+    rollNumber: studentUser.userId,
     phone: '+91 98765 43210',
     dob: new Date('2002-06-18'),
     city: 'Hyderabad',
@@ -563,7 +599,7 @@ export const seedDatabase = async () => {
     batch: batch._id,
     track: fsdTrack._id,
     assignedMentor: mentorUser._id,
-    rollNumber: 'CEGS-2025-0183',
+    rollNumber: peerStudent1.userId,
     phone: '+91 98765 43211',
     dob: new Date('2002-08-22'),
     city: 'Bengaluru',
@@ -590,7 +626,7 @@ export const seedDatabase = async () => {
     batch: batch._id,
     track: fsdTrack._id,
     assignedMentor: mentorUser._id,
-    rollNumber: 'CEGS-2025-0184',
+    rollNumber: peerStudent2.userId,
     phone: '+91 98765 43212',
     dob: new Date('2001-11-10'),
     city: 'Pune',
@@ -622,7 +658,7 @@ export const seedDatabase = async () => {
       batch: batch._id,
       track: assignedTrack._id,
       assignedMentor,
-      rollNumber: cs.seed.roll,
+      rollNumber: cs.user.userId,
       phone: `+91 98765 ${Math.floor(10000 + Math.random() * 90000)}`,
       dob: new Date(2002, Math.floor(Math.random() * 12), Math.floor(1 + Math.random() * 28)),
       city: 'Bengaluru',

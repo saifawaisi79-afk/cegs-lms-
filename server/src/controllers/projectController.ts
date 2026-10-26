@@ -3,6 +3,8 @@ import { Project, Task, ProjectFile } from '../models/Project.js';
 import { AuthRequest } from '../middleware/auth.js';
 import { logAuditEvent } from '../utils/auditLogger.js';
 
+import { assertMentorOwnsStudent, getMentorStudentUserIds } from '../utils/ownership.js';
+
 // PROJECTS
 export const getProjects = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -11,16 +13,17 @@ export const getProjects = async (req: AuthRequest, res: Response): Promise<void
     if (trackId) query.track = trackId;
 
     if (req.user?.role === 'student') {
-      // Find projects where student is a team member, or all projects in their track
       query.$or = [{ teamMembers: req.user._id }];
+    } else if (req.user?.role === 'mentor') {
+      const menteeUserIds = await getMentorStudentUserIds(req.user);
+      query.$or = [{ teamMembers: { $in: menteeUserIds || [] } }];
     }
 
     let projects = await Project.find(query)
       .populate('teamMembers', 'name email avatar')
       .populate('track');
 
-    // If student has no assigned team project yet, fetch track's general capstone projects
-    if (projects.length === 0) {
+    if (projects.length === 0 && req.user?.role === 'student') {
       projects = await Project.find().populate('teamMembers', 'name email avatar').populate('track');
     }
 
@@ -101,17 +104,23 @@ export const updateProject = async (req: AuthRequest, res: Response): Promise<vo
 };
 
 // TASKS & KANBAN
-export const getTasks = async (req: Request, res: Response): Promise<void> => {
+export const getTasks = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { projectId, assignedTo } = req.query;
     const query: any = {};
     if (projectId) query.project = projectId;
-    if (assignedTo) query.assignedTo = assignedTo;
+    if (assignedTo) {
+      if (req.user?.role === 'mentor') {
+        await assertMentorOwnsStudent(req.user, assignedTo as string);
+      }
+      query.assignedTo = assignedTo;
+    }
 
     const tasks = await Task.find(query).populate('assignedTo', 'name email avatar');
     res.status(200).json({ success: true, count: tasks.length, data: tasks });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ success: false, message: error.message });
   }
 };
 
@@ -133,6 +142,8 @@ export const createTask = async (req: AuthRequest, res: Response): Promise<void>
         res.status(400).json({ success: false, message: 'assignedTo must be a member of the project' });
         return;
       }
+    } else if (req.user?.role === 'mentor' && req.body.assignedTo) {
+      await assertMentorOwnsStudent(req.user, req.body.assignedTo);
     }
     
     const whitelist = ['title', 'description', 'project', 'priority', 'dueDate', 'sprintNumber', 'status', 'assignedTo'];
@@ -148,7 +159,8 @@ export const createTask = async (req: AuthRequest, res: Response): Promise<void>
     const task = await Task.create(taskData);
     res.status(201).json({ success: true, data: task });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ success: false, message: error.message });
   }
 };
 
@@ -217,10 +229,16 @@ export const deleteTask = async (req: AuthRequest, res: Response): Promise<void>
 // PROJECT FILES
 export const uploadProjectFile = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    const { id } = req.params;
     const { projectId, name, fileUrl, fileType, sizeBytes } = req.body;
     
+    if (projectId && projectId !== id) {
+      res.status(400).json({ success: false, message: 'projectId in body must match route id' });
+      return;
+    }
+    
     if (req.user?.role === 'student') {
-      const project = await Project.findById(projectId);
+      const project = await Project.findById(id);
       if (!project || !project.teamMembers.includes(req.user._id)) {
         res.status(403).json({ success: false, message: 'Forbidden' });
         return;
@@ -228,7 +246,7 @@ export const uploadProjectFile = async (req: AuthRequest, res: Response): Promis
     }
     
     const file = await ProjectFile.create({
-      project: projectId,
+      project: id,
       name,
       fileUrl,
       fileType: fileType || 'application/pdf',

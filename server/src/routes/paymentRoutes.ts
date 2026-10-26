@@ -12,6 +12,7 @@ const router = Router();
 router.use(authenticate);
 
 // Student / Current User Payment Routes
+router.get('/', getMyPayments);
 router.get('/me', getMyPayments);
 router.get('/:id', getPaymentById);
 router.get('/:id/receipt', getPaymentReceipt);

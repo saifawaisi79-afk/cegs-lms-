@@ -262,21 +262,24 @@ export const verifyReceiptPublic = async (req: Request, res: Response): Promise<
     const profile = await StudentProfile.findOne({ user: payment.studentId }).populate('track');
     const track = profile?.track as any;
 
+    const fullName = studentUser?.name || 'Verified Scholar';
+    let maskedName = fullName;
+    if (fullName !== 'Verified Scholar') {
+      const parts = fullName.trim().split(' ');
+      if (parts.length > 1) {
+        maskedName = `${parts[0]} ${parts[parts.length - 1][0]}.`;
+      }
+    }
+
     res.status(200).json({
       success: true,
       valid: true,
       data: {
         receiptNumber: payment.receiptNumber,
-        paymentId: payment.paymentId,
-        studentName: studentUser?.name || 'Verified Scholar',
+        studentName: maskedName,
         programTitle: '6-Month Job-Ready Training Program',
-        trackName: track?.name || profile?.preferredTrack || 'Full Stack Development',
         paymentDate: payment.paymentDate,
-        totalAmount: payment.totalAmount,
-        amountPaid: payment.amountPaid,
-        balanceAmount: payment.balanceAmount,
         paymentStatus: payment.status,
-        paymentMethod: payment.paymentMethod,
         isVerified: true,
         issuer: 'Career Expert Global Solutions',
         verifiedAt: new Date().toISOString(),

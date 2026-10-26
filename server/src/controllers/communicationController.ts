@@ -1,5 +1,7 @@
 import { Request, Response } from 'express';
 import { Notification, Conversation, Message, CalendarEvent } from '../models/Communication.js';
+import { StudentProfile } from '../models/Profiles.js';
+import { User } from '../models/User.js';
 import { AuthRequest } from '../middleware/auth.js';
 
 // NOTIFICATIONS
@@ -97,7 +99,44 @@ export const sendMessage = async (req: AuthRequest, res: Response): Promise<void
 
     let { conversationId, recipientId, content } = req.body;
 
-    if (!conversationId && recipientId) {
+    if (conversationId) {
+      const conv = await Conversation.findById(conversationId);
+      if (!conv) {
+        res.status(404).json({ success: false, message: 'Conversation not found' });
+        return;
+      }
+      if (req.user.role !== 'admin' && !conv.participants.includes(req.user._id)) {
+        res.status(403).json({ success: false, message: 'Forbidden: You are not a participant' });
+        return;
+      }
+    } else if (recipientId) {
+      if (req.user.role === 'student') {
+        const studentProfile = await StudentProfile.findOne({ user: req.user._id });
+        if (!studentProfile?.assignedMentor || studentProfile.assignedMentor.toString() !== recipientId.toString()) {
+          res.status(403).json({
+            success: false,
+            message: 'Forbidden: Students may only message their assigned mentor.',
+          });
+          return;
+        }
+      } else if (req.user.role === 'mentor') {
+        const recipientUser = await User.findById(recipientId);
+        if (!recipientUser) {
+          res.status(404).json({ success: false, message: 'Recipient not found.' });
+          return;
+        }
+        if (recipientUser.role !== 'admin') {
+          const menteeProfile = await StudentProfile.findOne({ user: recipientId, assignedMentor: req.user._id });
+          if (!menteeProfile) {
+            res.status(403).json({
+              success: false,
+              message: 'Forbidden: Mentors may only message their own students or administrators.',
+            });
+            return;
+          }
+        }
+      }
+
       // Find or create conversation
       let conv = await Conversation.findOne({
         participants: { $all: [req.user._id, recipientId] },

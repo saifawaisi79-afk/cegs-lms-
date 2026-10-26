@@ -2,13 +2,27 @@ import { Request, Response } from 'express';
 import { Attendance } from '../models/Attendance.js';
 import { AuthRequest } from '../middleware/auth.js';
 import { logAuditEvent } from '../utils/auditLogger.js';
+import { assertMentorOwnsStudent, getMentorStudentUserIds } from '../utils/ownership.js';
 
-export const getAttendance = async (req: Request, res: Response): Promise<void> => {
+export const getAttendance = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { studentId, batchId, startDate, endDate } = req.query;
     const query: any = {};
 
-    if (studentId) query.student = studentId;
+    if (req.user?.role === 'mentor') {
+      if (studentId) {
+        const profile = await assertMentorOwnsStudent(req.user, studentId as string);
+        query.student = profile.user;
+      } else {
+        const menteeUserIds = await getMentorStudentUserIds(req.user);
+        query.student = { $in: menteeUserIds || [] };
+      }
+    } else if (req.user?.role === 'student') {
+      query.student = req.user._id;
+    } else {
+      if (studentId) query.student = studentId;
+    }
+
     if (batchId) query.batch = batchId;
     if (startDate || endDate) {
       query.date = {};
@@ -23,7 +37,8 @@ export const getAttendance = async (req: Request, res: Response): Promise<void> 
 
     res.status(200).json({ success: true, count: records.length, data: records });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ success: false, message: error.message });
   }
 };
 
@@ -79,7 +94,21 @@ export const markAttendance = async (req: AuthRequest, res: Response): Promise<v
       res.status(403).json({ success: false, message: 'Forbidden: Cannot mark attendance for another student' });
       return;
     }
-    const targetStudent = (req.user?.role === 'admin' || req.user?.role === 'mentor') && studentId ? studentId : req.user?._id;
+
+    let targetStudentUserId = studentId;
+    if (req.user?.role === 'student') {
+      targetStudentUserId = req.user._id;
+    } else if (req.user?.role === 'mentor') {
+      if (!studentId) {
+        res.status(400).json({ success: false, message: 'studentId is required' });
+        return;
+      }
+      const profile = await assertMentorOwnsStudent(req.user, studentId);
+      targetStudentUserId = profile.user;
+    } else if (req.user?.role === 'admin') {
+      targetStudentUserId = studentId || req.user._id;
+    }
+
     let attendanceDate = date ? new Date(date) : new Date();
     let attendanceStatus = status || 'Present';
 
@@ -102,7 +131,7 @@ export const markAttendance = async (req: AuthRequest, res: Response): Promise<v
     endOfDay.setHours(23, 59, 59, 999);
 
     let record = await Attendance.findOne({
-      student: targetStudent,
+      student: targetStudentUserId,
       date: { $gte: startOfDay, $lte: endOfDay },
     });
 
@@ -113,7 +142,7 @@ export const markAttendance = async (req: AuthRequest, res: Response): Promise<v
       await record.save();
     } else {
       record = await Attendance.create({
-        student: targetStudent,
+        student: targetStudentUserId,
         batch: batchId,
         date: attendanceDate,
         status: attendanceStatus,
@@ -124,13 +153,14 @@ export const markAttendance = async (req: AuthRequest, res: Response): Promise<v
     }
 
     await logAuditEvent(req, 'MARK_ATTENDANCE', 'ATTENDANCE', record._id.toString(), {
-      studentId: targetStudent,
+      studentId: targetStudentUserId,
       status: record.status,
     });
 
     res.status(200).json({ success: true, data: record });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ success: false, message: error.message });
   }
 };
 
@@ -138,6 +168,12 @@ export const markBatchAttendance = async (req: AuthRequest, res: Response): Prom
   try {
     const { batchId, date, entries } = req.body; // entries: [{ studentId, status, remarks }]
     const attendanceDate = date ? new Date(date) : new Date();
+
+    if (req.user?.role === 'mentor') {
+      for (const entry of entries) {
+        await assertMentorOwnsStudent(req.user, entry.studentId);
+      }
+    }
 
     const results = [];
     for (const entry of entries) {
@@ -175,6 +211,7 @@ export const markBatchAttendance = async (req: AuthRequest, res: Response): Prom
 
     res.status(200).json({ success: true, count: results.length, data: results });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ success: false, message: error.message });
   }
 };

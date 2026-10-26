@@ -12,8 +12,8 @@ async function testPaymentModule() {
 
     // 2. Student Login
     const studentLogin = await axios.post(`${BASE_URL}/auth/login`, {
-      email: 'student@careerexpertglobal.com',
-      password: 'Password123!',
+      email: process.env.TEST_STUDENT_EMAIL || 'student@careerexpertglobal.com',
+      password: process.env.TEST_STUDENT_PASSWORD || process.env.TEST_PASSWORD || '',
     });
     const studentToken = studentLogin.data.token;
     const studentUser = studentLogin.data.user;
@@ -21,8 +21,8 @@ async function testPaymentModule() {
 
     // 3. Admin Login
     const adminLogin = await axios.post(`${BASE_URL}/auth/login`, {
-      email: 'admin@careerexpertglobal.com',
-      password: 'Password123!',
+      email: process.env.TEST_ADMIN_EMAIL || 'admin@careerexpertglobal.com',
+      password: process.env.TEST_ADMIN_PASSWORD || process.env.TEST_PASSWORD || '',
     });
     const adminToken = adminLogin.data.token;
     const adminUser = adminLogin.data.user;

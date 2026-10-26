@@ -2,8 +2,7 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { LandingPage } from '../pages/LandingPage.js';
 import { LoginPage } from '../pages/LoginPage.js';
-import { ForgotPasswordPage } from '../pages/ForgotPasswordPage.js';
-import { ResetPasswordPage } from '../pages/ResetPasswordPage.js';
+import { ChangePasswordPage } from '../pages/ChangePasswordPage.js';
 import { VerifyCertificatePage } from '../pages/VerifyCertificatePage.js';
 import { VerifyReceiptPage } from '../pages/VerifyReceiptPage.js';
 import { StudentOnboardingPage } from '../pages/StudentOnboardingPage.js';
@@ -33,6 +32,7 @@ import { PackagesPage } from '../features/program/PackagesPage.js';
 
 // Admin & Mentor Portals
 import { MentorDashboard } from '../features/mentor/MentorDashboard.js';
+import { MentorManagementPage } from '../features/admin/MentorManagementPage.js';
 import { AdminDashboard } from '../features/admin/AdminDashboard.js';
 import { StudentManagementPage } from '../features/admin/StudentManagementPage.js';
 import { AdminPaymentsPage } from '../features/admin/AdminPaymentsPage.js';
@@ -46,16 +46,16 @@ export const AppRoutes: React.FC = () => {
       {/* Public Pages */}
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/verify-certificate/:certificateId" element={<VerifyCertificatePage />} />
       <Route path="/verify-receipt/:receiptNumber" element={<VerifyReceiptPage />} />
 
-      {/* Onboarding Wizard */}
-      <Route path="/onboarding" element={<StudentOnboardingPage />} />
-
-      {/* Authenticated Application with DashboardLayout */}
+      {/* Authenticated Application with ProtectedRoute */}
       <Route element={<ProtectedRoute />}>
+        {/* Minimal Layout Pages (No Sidebar) */}
+        <Route path="/change-password" element={<ChangePasswordPage />} />
+        <Route path="/onboarding" element={<StudentOnboardingPage />} />
+
+        {/* Dashboard Layout Pages */}
         <Route element={<DashboardLayout />}>
           {/* Candidate / Student Core Routes */}
           <Route path="/dashboard" element={<StudentDashboard />} />
@@ -83,7 +83,7 @@ export const AppRoutes: React.FC = () => {
           {/* Mentor Routes */}
           <Route element={<ProtectedRoute allowedRoles={['mentor', 'admin']} />}>
             <Route path="/mentor" element={<MentorDashboard />} />
-            <Route path="/mentor/students" element={<MentorDashboard />} />
+            <Route path="/mentor/students" element={<StudentManagementPage />} />
             <Route path="/mentor/students/:id" element={<StudentProfilePage />} />
             <Route path="/mentor/mock-interviews" element={<MockInterviewsPage />} />
           </Route>
@@ -93,7 +93,7 @@ export const AppRoutes: React.FC = () => {
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/students" element={<StudentManagementPage />} />
             <Route path="/admin/students/:id" element={<StudentProfilePage />} />
-            <Route path="/admin/mentors" element={<MentorDashboard />} />
+            <Route path="/admin/mentors" element={<MentorManagementPage />} />
             <Route path="/admin/batches" element={<StudentManagementPage />} />
             <Route path="/admin/tracks" element={<CareerTracksPage />} />
             <Route path="/admin/curriculum" element={<LearningDashboard />} />

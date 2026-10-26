@@ -139,6 +139,7 @@ export const SettingsPage: React.FC = () => {
                 onChange={(e) => setPassingScore(e.target.value)}
                 className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-semibold focus:outline-none focus:border-[#0F8F87] focus:bg-white"
               />
+              <span className="text-[10px] text-slate-400 mt-1 block">Informational, not yet enforced</span>
             </div>
             <div>
               <label className="font-bold text-slate-700 block mb-1">Minimum Attendance for Placement (%)</label>
@@ -148,6 +149,7 @@ export const SettingsPage: React.FC = () => {
                 onChange={(e) => setAttendanceMin(e.target.value)}
                 className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-semibold focus:outline-none focus:border-[#0F8F87] focus:bg-white"
               />
+              <span className="text-[10px] text-slate-400 mt-1 block">Informational, not yet enforced</span>
             </div>
           </div>
         </div>

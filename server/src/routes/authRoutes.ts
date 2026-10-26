@@ -1,16 +1,25 @@
 import { Router } from 'express';
-import { login, getMe, logout, forgotPassword, resetPassword } from '../controllers/authController.js';
+import {
+  login,
+  refresh,
+  changePassword,
+  getMe,
+  logout,
+  logoutAll,
+} from '../controllers/authController.js';
 import { authenticate } from '../middleware/auth.js';
-import { authLimiter } from '../middleware/rateLimiter.js';
-import { validateRequest } from '../middleware/validate.js';
-import { forgotPasswordSchema, resetPasswordSchema } from '../utils/schemas.js';
+import {
+  loginFailedAttemptLimiter,
+  ipFailedAttemptLimiter,
+} from '../middleware/rateLimiter.js';
 
 const router = Router();
 
-router.post('/login', authLimiter, login);
+router.post('/login', ipFailedAttemptLimiter, loginFailedAttemptLimiter, login);
+router.post('/refresh', refresh);
 router.post('/logout', logout);
-router.post('/forgot-password', authLimiter, validateRequest(forgotPasswordSchema), forgotPassword);
-router.post('/reset-password', validateRequest(resetPasswordSchema), resetPassword);
+router.post('/logout-all', authenticate, logoutAll);
+router.post('/change-password', authenticate, changePassword);
 router.get('/me', authenticate, getMe);
 
 export default router;

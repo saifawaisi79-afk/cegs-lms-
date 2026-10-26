@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   BookOpen,
@@ -28,6 +28,7 @@ import {
   Building2,
   CheckCircle2,
   CreditCard,
+  Compass,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore.js';
 
@@ -56,6 +57,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   collapsed,
   onToggleCollapse,
 }) => {
+  const navigate = useNavigate();
   const { role, user } = useAuthStore();
   const location = useLocation();
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
@@ -72,6 +74,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       group: 'Learning',
       items: [
         { label: 'My Learning', path: '/learning', icon: BookOpen },
+        { label: '6-Month Roadmap', path: '/months', icon: Compass },
+        { label: 'Career Tracks', path: '/career-tracks', icon: Target },
         { label: 'Assessments', path: '/assessments', icon: ClipboardCheck },
       ],
     },
@@ -176,6 +180,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       items: [
         { label: 'Programs & Batches', path: '/admin/batches', icon: Calendar },
         { label: '5 Program Tracks', path: '/admin/tracks', icon: Target },
+        { label: '6-Month Roadmap', path: '/months', icon: Compass },
         { label: 'Curriculum & Modules', path: '/learning', icon: BookOpen },
       ],
     },
@@ -235,8 +240,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="flex flex-col flex-1 overflow-y-auto overflow-x-hidden">
           {/* Top Brand header */}
           <div className="h-16 px-4 border-b border-slate-100 flex items-center justify-between flex-shrink-0">
-            <div className="flex items-center gap-3 overflow-hidden">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-600 to-teal-500 flex items-center justify-center text-white font-black text-sm shadow-sm flex-shrink-0">
+            <div
+              onClick={() => navigate(role === 'admin' ? '/admin' : role === 'mentor' ? '/mentor' : '/dashboard')}
+              className="flex items-center gap-3 overflow-hidden cursor-pointer group"
+              title="Return to Dashboard"
+            >
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-600 to-teal-500 flex items-center justify-center text-white font-black text-sm shadow-sm flex-shrink-0 group-hover:scale-105 transition-transform">
                 CE
               </div>
               {!collapsed && (

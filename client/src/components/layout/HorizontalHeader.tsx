@@ -56,7 +56,7 @@ export const HorizontalHeader: React.FC<HorizontalHeaderProps> = ({
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, role, logout, switchRoleDemo } = useAuthStore();
+  const { user, role, logout } = useAuthStore();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
@@ -501,40 +501,6 @@ export const HorizontalHeader: React.FC<HorizontalHeaderProps> = ({
             )}
           </div>
 
-          {/* Role Switcher Pill (Desktop) */}
-          <div className="hidden xl:flex items-center bg-[#F1F4F2] p-1 rounded-lg border border-[#E2E8E5] text-xs font-semibold">
-            <button
-              onClick={() => switchRoleDemo('student')}
-              className={`px-2.5 py-1 rounded-md transition ${
-                role === 'student'
-                  ? 'bg-white text-[#0F8F87] shadow-subtle font-bold'
-                  : 'text-[#52606D] hover:text-[#17202A]'
-              }`}
-            >
-              Student
-            </button>
-            <button
-              onClick={() => switchRoleDemo('mentor')}
-              className={`px-2.5 py-1 rounded-md transition ${
-                role === 'mentor'
-                  ? 'bg-white text-[#0F8F87] shadow-subtle font-bold'
-                  : 'text-[#52606D] hover:text-[#17202A]'
-              }`}
-            >
-              Mentor
-            </button>
-            <button
-              onClick={() => switchRoleDemo('admin')}
-              className={`px-2.5 py-1 rounded-md transition ${
-                role === 'admin'
-                  ? 'bg-white text-[#0F8F87] shadow-subtle font-bold'
-                  : 'text-[#52606D] hover:text-[#17202A]'
-              }`}
-            >
-              Admin
-            </button>
-          </div>
-
           {/* User Profile / Account Dropdown */}
           <div className="relative" ref={userRef}>
             <button
@@ -652,43 +618,6 @@ export const HorizontalHeader: React.FC<HorizontalHeaderProps> = ({
                   className="p-1.5 rounded-lg text-[#7B8794] hover:text-[#17202A] hover:bg-[#F1F4F2]"
                 >
                   <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Mobile Role Switcher */}
-              <div className="p-1 bg-[#F1F4F2] border border-[#E2E8E5] rounded-lg grid grid-cols-3 gap-1 text-xs text-center font-semibold">
-                <button
-                  onClick={() => {
-                    switchRoleDemo('student');
-                    setMobileMenuOpen(false);
-                  }}
-                  className={`py-1.5 rounded-md ${
-                    role === 'student' ? 'bg-white text-[#0F8F87] shadow-subtle' : 'text-[#52606D]'
-                  }`}
-                >
-                  Student
-                </button>
-                <button
-                  onClick={() => {
-                    switchRoleDemo('mentor');
-                    setMobileMenuOpen(false);
-                  }}
-                  className={`py-1.5 rounded-md ${
-                    role === 'mentor' ? 'bg-white text-[#0F8F87] shadow-subtle' : 'text-[#52606D]'
-                  }`}
-                >
-                  Mentor
-                </button>
-                <button
-                  onClick={() => {
-                    switchRoleDemo('admin');
-                    setMobileMenuOpen(false);
-                  }}
-                  className={`py-1.5 rounded-md ${
-                    role === 'admin' ? 'bg-white text-[#0F8F87] shadow-subtle' : 'text-[#52606D]'
-                  }`}
-                >
-                  Admin
                 </button>
               </div>
 

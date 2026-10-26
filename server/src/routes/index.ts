@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import mongoose from 'mongoose';
 import authRoutes from './authRoutes.js';
+import mentorRoutes from './mentorRoutes.js';
 import studentRoutes from './studentRoutes.js';
 import curriculumRoutes from './curriculumRoutes.js';
 import assessmentRoutes from './assessmentRoutes.js';
@@ -18,6 +19,7 @@ import receiptRoutes from './receiptRoutes.js';
 const router = Router();
 
 router.use('/auth', authRoutes);
+router.use('/mentors', mentorRoutes);
 router.use('/students', studentRoutes);
 router.use('/curriculum', curriculumRoutes);
 router.use('/assessments', assessmentRoutes);

@@ -24,14 +24,14 @@ import { authorize } from '../middleware/rbac.js';
 
 const router = Router();
 
-// Public/Authenticated reading
-router.get('/programs', getPrograms);
-router.get('/tracks', getTracks);
-router.get('/tracks/:id', getTrackById);
-router.get('/batches', getBatches);
-router.get('/modules', getModules);
-router.get('/lessons', getLessons);
-router.get('/lessons/:id', getLessonById);
+// Authenticated reading
+router.get('/programs', authenticate, getPrograms);
+router.get('/tracks', authenticate, getTracks);
+router.get('/tracks/:id', authenticate, getTrackById);
+router.get('/batches', authenticate, getBatches);
+router.get('/modules', authenticate, getModules);
+router.get('/lessons', authenticate, getLessons);
+router.get('/lessons/:id', authenticate, getLessonById);
 
 // Progress routes (student)
 router.get('/progress/me', authenticate, getMyProgress);

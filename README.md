@@ -42,17 +42,50 @@ ASSESS → PERSONALIZE → LEARN → PRACTICE → ASSESS → BUILD → MENTOR �
 
 ---
 
-## 🔐 Demo Credentials
+---
 
-Quick 1-click login buttons are available directly on the login page:
+## 🔐 Role-Based Access Control & ID Architecture
 
-| Role | Email | Password |
-|---|---|---|
-| **Student / Candidate** | `student@careerexpertglobal.com` | `Password123!` |
-| **Trainer / Mentor** | `mentor@careerexpertglobal.com` | `Password123!` |
-| **Administrator** | `admin@careerexpertglobal.com` | `Password123!` |
+The CEGS LMS implements an enterprise closed-loop enrollment model: **there is no public sign-up**. Every account is provisioned by an authorized person, and role portals are determined automatically by the authenticated server session:
+
+| Role | Login ID Format | Provisioned By | Scope & Access Control |
+|---|---|---|---|
+| **System Administrator** | `ADM####` (e.g. `ADM0001`) | Server CLI script (`npm run create-admin`) | System-wide oversight; manages mentors; can reassign, reset passwords, or deactivate any mentor or student. |
+| **Faculty Trainer / Mentor** | `MNTR####` (e.g. `MNTR0001`) | System Administrator via UI (`/admin/mentors`) | Faculty workspace; manages and mentors **their assigned students only**; conducts SWOT reviews, mock interviews, and attendance. |
+| **Student / Candidate** | `STD####` (e.g. `STD0001`) | Assigned Mentor or Admin | Learning portal, roadmap, curriculum modules, assessments, sprints, portfolio, and stipend tracking. |
 
 *Sample Verified Certificate ID for testing:* `CEGS-2025-FGT-0182`
+
+---
+
+## 🔑 Authentication, Onboarding & Security Workflow
+
+### 1. Unified Credential Login
+- Login form accepts either **Login ID** (`MNTR0001`, `STD0001`, `ADM0001`) or registered **Email address**.
+- Identifiers are automatically normalized (IDs to uppercase, emails to lowercase).
+- Brute-force protection: After 5 failed attempts (`MAX_LOGIN_ATTEMPTS`), the account is locked for 15 minutes (`LOCKOUT_MINUTES`, HTTP 423). Rate limiting applies per IP and per identifier.
+- Equalized bcrypt timing dummy comparisons prevent username enumeration.
+
+### 2. Auto-Generated Temporary Passwords
+- Passwords are never typed during account creation.
+- The server generates a cryptographically secure 12-character password (e.g. `Kx7m-Pq4R-t9Wz`) with upper, lower, digit, and no ambiguous characters (`0/O/1/l/I`).
+- Displayed **exactly once** in a secure `CredentialsModal` with copy, print, and slip download features (`Cache-Control: no-store`).
+
+### 3. Forced Password Change on First Login
+- Newly enrolled users receive `mustChangePassword: true`.
+- On first login, all protected routes return `403 PASSWORD_CHANGE_REQUIRED`.
+- The user is redirected to `/change-password` with live security requirement validation:
+  - Minimum 10 characters, maximum 72 characters.
+  - Must include uppercase, lowercase, and a number.
+  - Must not contain the user's ID, name parts, or email local-part.
+  - Must not match common passwords or the current temporary password.
+- Upon password change, a fresh token pair is issued and students are routed to `/onboarding`.
+
+### 4. Account Recovery Protocol
+There are no unauthenticated public email reset links. Credential recovery follows the organizational hierarchy:
+- **Student**: Requests their assigned mentor to trigger a password reset.
+- **Mentor**: Requests the system administrator to trigger a password reset via `/admin/mentors`.
+- **Administrator**: Uses the server CLI tool (`npm run create-admin -- --reset`).
 
 ---
 
@@ -75,40 +108,74 @@ cd ../client && npm install
 cd ..
 ```
 
-### 3. Environment Variables
-The server requires a persistent MongoDB database. The in-memory database fallback is disabled by default.
-Copy `server/.env.example` to `server/.env` and configure your environment:
+### 3. Environment Variables Configuration
 
-`server/.env`:
+Copy `server/.env.example` to `server/.env` and `client/.env.example` to `client/.env`.
+
+#### **`server/.env` variables:**
+| Variable | Description | Default / Example |
+|---|---|---|
+| `PORT` | Backend HTTP listening port | `5000` |
+| `NODE_ENV` | Environment mode (`development` / `production`) | `development` |
+| `MONGODB_URI` | MongoDB Atlas or local connection string | `mongodb+srv://...` |
+| `USE_MEMORY_DB` | Set `true` to use embedded in-memory MongoDB | `false` |
+| `SEED_ON_START` | Automatically seed curriculum data on server start | `true` |
+| `SEED_DEMO_DATA` | Seed mock users (development only; never in prod) | `false` |
+| `CLIENT_URL` | Allowed origin for frontend application | `http://localhost:5173` |
+| `JWT_SECRET` | Secret key for access tokens (min 32 characters) | *(random string)* |
+| `JWT_REFRESH_SECRET` | Distinct secret key for refresh tokens (min 32 chars) | *(random string)* |
+| `JWT_ACCESS_EXPIRES_IN` | Access token lifespan | `15m` |
+| `JWT_REFRESH_EXPIRES_IN` | Refresh token lifespan | `7d` |
+| `COOKIE_SECURE` | Set cookie Secure flag (required `true` on HTTPS) | `false` (dev) / `true` (prod) |
+| `COOKIE_SAMESITE` | Cookie SameSite attribute (`lax`, `strict`, `none`) | `lax` |
+| `MAX_LOGIN_ATTEMPTS` | Number of failed login attempts before lockout | `5` |
+| `LOCKOUT_MINUTES` | Account lockout duration in minutes | `15` |
+| `BCRYPT_ROUNDS` | Password hashing salt cost rounds | `12` |
+
+#### **Cross-Domain Cookie & CORS Configuration:**
+When the frontend and backend are hosted on different domains or subdomains in production (e.g., `app.domain.com` and `api.domain.com`):
 ```env
-PORT=5000
-NODE_ENV=development
-MONGODB_URI=PASTE_YOUR_MONGODB_CONNECTION_STRING_HERE
-USE_MEMORY_DB=false
-SEED_ON_START=true
-JWT_SECRET=CHANGE_ME_TO_A_LONG_RANDOM_STRING
-JWT_EXPIRES_IN=7d
-CLIENT_URL=http://localhost:5173
+CLIENT_URL=https://app.yourdomain.com
+COOKIE_SAMESITE=none
+COOKIE_SECURE=true
 ```
 
-**MongoDB Setup Instructions:**
-1. Create a free cluster on [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) (or use a local instance).
-2. If using Atlas, ensure your current IP address is whitelisted under **Network Access**.
-3. Create a database user and password.
-4. Get your connection string (e.g., `mongodb+srv://<user>:<password>@cluster...`) and paste it into `MONGODB_URI` in `server/.env`.
+#### **`client/.env` variables:**
+- `VITE_API_URL`: Backend API base URL (e.g., `http://localhost:5000/api`).
 
-### 4. Running the Development Servers
+---
+
+## 🛠️ CLI Operations & Administrative Tools
+
+### 1. Creating the First Administrator (`npm run create-admin`)
+Because admin accounts cannot be created via the API or frontend, run the secure interactive CLI command:
 ```bash
-# Run server
-cd server && npm run dev
-
-# In another terminal, run client
-cd client && npm run dev
+npm run create-admin
 ```
+- Prompts for name, email, and password in terminal (password entry hidden).
+- You can also provide variables directly:
+  `ADMIN_NAME="Admin" ADMIN_EMAIL="admin@cegs.com" ADMIN_PASSWORD="StrongPassword123#" npm run create-admin`
+- To reset an existing admin's password and revoke all sessions:
+  ```bash
+  npm run create-admin -- --reset
+  ```
 
-- **Frontend URL**: [http://localhost:5173](http://localhost:5173)
-- **Backend API**: [http://localhost:5000/api](http://localhost:5000/api)
-- **API Health**: [http://localhost:5000/api/health](http://localhost:5000/api/health)
+### 2. Legacy Database Migration (`npm run auth:migrate`)
+To upgrade existing databases to the new authentication and sequential ID architecture:
+```bash
+npm run auth:migrate
+```
+- **Idempotent**: Assigns missing `MNTR####`, `STD####`, and `ADM####` IDs in order of account creation.
+- Synchronizes sequence counters (`Counter` collection) so future IDs continue seamlessly.
+- Sets `mustChangePassword=true` for all non-admin accounts.
+- Rotates legacy default passwords (e.g. `Password123!`) to cryptographically secure random passwords.
+- Outputs the newly generated credentials into a gitignored file: `server/credentials-migration-<timestamp>.csv`.
+
+### 3. Running E2E Access Control Tests (`npm run e2e`)
+Runs the comprehensive 25-scenario end-to-end test suite against an isolated in-memory database without modifying Atlas:
+```bash
+npm run e2e
+```
 
 ---
 

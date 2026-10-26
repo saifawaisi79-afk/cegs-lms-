@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { StipendRecord } from '../models/Stipend.js';
 import { AuthRequest } from '../middleware/auth.js';
 import { logAuditEvent } from '../utils/auditLogger.js';
+import { assertMentorOwnsStudent, getMentorStudentUserIds } from '../utils/ownership.js';
 
 export const getStipends = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -10,6 +11,16 @@ export const getStipends = async (req: AuthRequest, res: Response): Promise<void
 
     if (req.user?.role === 'student') {
       query.student = req.user._id;
+    } else if (req.user?.role === 'mentor') {
+      if (studentId) {
+        const profile = await assertMentorOwnsStudent(req.user, studentId as string);
+        query.student = profile.user;
+      } else {
+        const menteeUserIds = await getMentorStudentUserIds(req.user);
+        query.student = { $in: menteeUserIds || [] };
+      }
+      if (monthNumber) query.monthNumber = Number(monthNumber);
+      if (status) query.status = status;
     } else {
       if (studentId) query.student = studentId;
       if (monthNumber) query.monthNumber = Number(monthNumber);
@@ -39,12 +50,17 @@ export const getStipends = async (req: AuthRequest, res: Response): Promise<void
       },
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ success: false, message: error.message });
   }
 };
 
 export const createStipendRecord = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    if (req.user?.role === 'mentor' && req.body.student) {
+      await assertMentorOwnsStudent(req.user, req.body.student);
+    }
+
     const record = await StipendRecord.create({
       ...req.body,
       processedBy: req.user?._id,
@@ -52,13 +68,24 @@ export const createStipendRecord = async (req: AuthRequest, res: Response): Prom
     await logAuditEvent(req, 'CREATE_STIPEND_RECORD', 'STIPEND', record._id.toString(), req.body);
     res.status(201).json({ success: true, data: record });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ success: false, message: error.message });
   }
 };
 
 export const updateStipendRecord = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const recordId = req.params.id as string;
+    const existing = await StipendRecord.findById(recordId);
+    if (!existing) {
+      res.status(404).json({ success: false, message: 'Stipend record not found.' });
+      return;
+    }
+
+    if (req.user?.role === 'mentor') {
+      await assertMentorOwnsStudent(req.user, existing.student.toString());
+    }
+
     const updateData = { ...req.body, processedBy: req.user?._id };
     if (req.body.status === 'Disbursed' && !req.body.paymentDate) {
       updateData.paymentDate = new Date();
@@ -68,6 +95,7 @@ export const updateStipendRecord = async (req: AuthRequest, res: Response): Prom
     await logAuditEvent(req, 'UPDATE_STIPEND_STATUS', 'STIPEND', recordId, req.body);
     res.status(200).json({ success: true, data: record });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ success: false, message: error.message });
   }
 };

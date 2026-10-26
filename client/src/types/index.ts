@@ -2,12 +2,17 @@ export type UserRole = 'student' | 'mentor' | 'admin';
 
 export interface IUser {
   id: string;
+  _id?: string;
+  userId: string;
   name: string;
   email: string;
   role: UserRole;
   avatar?: string;
   isFirstLogin?: boolean;
+  mustChangePassword?: boolean;
+  lastLogin?: string;
   studentProfile?: IStudentProfile;
+  mentorProfile?: IMentorProfile;
 }
 
 export interface IStudentProfile {

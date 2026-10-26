@@ -163,29 +163,40 @@ export const globalSearch = async (req: AuthRequest, res: Response): Promise<voi
     };
     const regex = new RegExp(escapeRegExp(q.trim()), 'i');
 
-    let students = [];
-    if (req.user?.role === 'admin' || req.user?.role === 'mentor') {
-      students = await User.find({ role: 'student', $or: [{ name: regex }, { email: regex }] }).select('name email avatar').limit(5);
-    } else {
-      students = await User.find({ _id: req.user?._id, role: 'student', $or: [{ name: regex }] }).select('name avatar').limit(5);
-    }
+    let students: any[] = [];
+    let projects: any[] = [];
+    let interviews: any[] = [];
+    let certificates: any[] = [];
 
     const [lessons, assessments] = await Promise.all([
       Lesson.find({ $or: [{ title: regex }, { description: regex }] }).select('title description module order').limit(5),
       Assessment.find({ $or: [{ title: regex }, { description: regex }] }).select('title weekNumber monthNumber type').limit(5),
     ]);
 
-    let projects = [];
-    let interviews = [];
-    let certificates = [];
-
-    if (req.user?.role === 'admin' || req.user?.role === 'mentor') {
+    if (req.user?.role === 'admin') {
+      students = await User.find({ role: 'student', $or: [{ name: regex }, { email: regex }, { userId: regex }] }).select('name email avatar userId').limit(5);
       [projects, interviews, certificates] = await Promise.all([
         Project.find({ $or: [{ title: regex }, { technologies: regex }] }).select('title technologies status').limit(5),
         Interview.find({ $or: [{ companyName: regex }, { role: regex }] }).select('companyName role scheduledAt status').limit(5),
         Certificate.find({ $or: [{ certificateId: regex }, { candidateName: regex }] }).select('certificateId candidateName grade status').limit(5),
       ]);
+    } else if (req.user?.role === 'mentor') {
+      const menteeProfiles = await StudentProfile.find({ assignedMentor: req.user._id }).select('user');
+      const menteeUserIds = menteeProfiles.map((p) => p.user);
+
+      students = await User.find({
+        _id: { $in: menteeUserIds },
+        role: 'student',
+        $or: [{ name: regex }, { email: regex }, { userId: regex }],
+      }).select('name email avatar userId').limit(5);
+
+      [projects, interviews, certificates] = await Promise.all([
+        Project.find({ teamMembers: { $in: menteeUserIds }, $or: [{ title: regex }, { technologies: regex }] }).select('title technologies status').limit(5),
+        Interview.find({ candidate: { $in: menteeUserIds }, $or: [{ companyName: regex }, { role: regex }] }).select('companyName role scheduledAt status').limit(5),
+        Certificate.find({ student: { $in: menteeUserIds }, $or: [{ certificateId: regex }, { candidateName: regex }] }).select('certificateId candidateName grade status').limit(5),
+      ]);
     } else {
+      students = await User.find({ _id: req.user?._id, role: 'student', $or: [{ name: regex }] }).select('name avatar userId').limit(5);
       [projects, interviews, certificates] = await Promise.all([
         Project.find({ teamMembers: req.user?._id, $or: [{ title: regex }, { technologies: regex }] }).select('title technologies status').limit(5),
         Interview.find({ candidate: req.user?._id, $or: [{ companyName: regex }, { role: regex }] }).select('companyName role scheduledAt status').limit(5),

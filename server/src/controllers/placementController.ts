@@ -44,12 +44,17 @@ export const createJobOpportunity = async (req: AuthRequest, res: Response): Pro
   }
 };
 
+import { assertMentorOwnsStudent, getMentorStudentUserIds } from '../utils/ownership.js';
+
 // INTERVIEWS
 export const getInterviews = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const query: any = {};
     if (req.user?.role === 'student') {
       query.candidate = req.user._id;
+    } else if (req.user?.role === 'mentor') {
+      const menteeUserIds = await getMentorStudentUserIds(req.user);
+      query.candidate = { $in: menteeUserIds || [] };
     }
 
     const interviews = await Interview.find(query)
@@ -59,28 +64,42 @@ export const getInterviews = async (req: AuthRequest, res: Response): Promise<vo
 
     res.status(200).json({ success: true, count: interviews.length, data: interviews });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ success: false, message: error.message });
   }
 };
 
 export const createInterview = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    if (req.user?.role === 'mentor' && req.body.candidate) {
+      await assertMentorOwnsStudent(req.user, req.body.candidate);
+    }
     const interview = await Interview.create(req.body);
     await logAuditEvent(req, 'SCHEDULE_INTERVIEW', 'PLACEMENT', interview._id.toString(), req.body);
     res.status(201).json({ success: true, data: interview });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ success: false, message: error.message });
   }
 };
 
 export const updateInterview = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const interviewId = req.params.id as string;
+    const existing = await Interview.findById(interviewId);
+    if (!existing) {
+      res.status(404).json({ success: false, message: 'Interview not found' });
+      return;
+    }
+    if (req.user?.role === 'mentor') {
+      await assertMentorOwnsStudent(req.user, existing.candidate.toString());
+    }
     const interview = await Interview.findByIdAndUpdate(interviewId, req.body, { new: true });
     await logAuditEvent(req, 'UPDATE_INTERVIEW', 'PLACEMENT', interviewId, req.body);
     res.status(200).json({ success: true, data: interview });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ success: false, message: error.message });
   }
 };
 
@@ -90,6 +109,9 @@ export const getOffers = async (req: AuthRequest, res: Response): Promise<void> 
     const query: any = {};
     if (req.user?.role === 'student') {
       query.student = req.user._id;
+    } else if (req.user?.role === 'mentor') {
+      const menteeUserIds = await getMentorStudentUserIds(req.user);
+      query.student = { $in: menteeUserIds || [] };
     }
 
     const offers = await Offer.find(query)
@@ -98,7 +120,8 @@ export const getOffers = async (req: AuthRequest, res: Response): Promise<void> 
 
     res.status(200).json({ success: true, count: offers.length, data: offers });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ success: false, message: error.message });
   }
 };
 
