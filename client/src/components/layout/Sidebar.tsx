@@ -125,12 +125,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       group: 'Students',
       items: [
         { label: 'My Students', path: '/mentor/students', icon: Users },
-        { label: 'Student Progress', path: '/learning', icon: BookOpen },
       ],
     },
     {
       group: 'Training',
       items: [
+        { label: 'Curriculum & Learning', path: '/learning', icon: BookOpen },
         { label: 'Assessments', path: '/assessments', icon: ClipboardCheck },
         { label: 'Mentorship & SWOT', path: '/mentorship', icon: Users },
         { label: 'Mock Interviews', path: '/mentor/mock-interviews', icon: Video },

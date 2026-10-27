@@ -134,6 +134,37 @@ export const createModule = async (req: AuthRequest, res: Response): Promise<voi
   }
 };
 
+export const updateModule = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const moduleId = req.params.id as string;
+    const module = await Module.findByIdAndUpdate(moduleId, req.body, { new: true });
+    if (!module) {
+      res.status(404).json({ success: false, message: 'Module not found.' });
+      return;
+    }
+    await logAuditEvent(req, 'UPDATE_MODULE', 'CURRICULUM', moduleId, req.body);
+    res.status(200).json({ success: true, data: module });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const deleteModule = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const moduleId = req.params.id as string;
+    const module = await Module.findByIdAndDelete(moduleId);
+    if (!module) {
+      res.status(404).json({ success: false, message: 'Module not found.' });
+      return;
+    }
+    await Lesson.deleteMany({ module: moduleId });
+    await logAuditEvent(req, 'DELETE_MODULE', 'CURRICULUM', moduleId, {});
+    res.status(200).json({ success: true, message: 'Module and associated lessons deleted successfully.' });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 export const getLessons = async (req: Request, res: Response): Promise<void> => {
   try {
     const { moduleId } = req.query;
@@ -174,8 +205,27 @@ export const updateLesson = async (req: AuthRequest, res: Response): Promise<voi
   try {
     const lessonId = req.params.id as string;
     const lesson = await Lesson.findByIdAndUpdate(lessonId, req.body, { new: true });
+    if (!lesson) {
+      res.status(404).json({ success: false, message: 'Lesson not found.' });
+      return;
+    }
     await logAuditEvent(req, 'UPDATE_LESSON', 'CURRICULUM', lessonId, req.body);
     res.status(200).json({ success: true, data: lesson });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const deleteLesson = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const lessonId = req.params.id as string;
+    const lesson = await Lesson.findByIdAndDelete(lessonId);
+    if (!lesson) {
+      res.status(404).json({ success: false, message: 'Lesson not found.' });
+      return;
+    }
+    await logAuditEvent(req, 'DELETE_LESSON', 'CURRICULUM', lessonId, {});
+    res.status(200).json({ success: true, message: 'Lesson deleted successfully.' });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }

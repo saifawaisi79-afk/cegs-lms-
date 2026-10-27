@@ -10,6 +10,8 @@ import { errorHandler } from './middleware/errorHandler.js';
 import { seedDatabase } from './scripts/seed.js';
 
 import cookieParser from 'cookie-parser';
+import path from 'path';
+import fs from 'fs';
 
 const app = express();
 
@@ -59,6 +61,13 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 if (ENV.NODE_ENV !== 'test') {
   app.use(morgan('dev'));
 }
+
+// Serve uploaded files (videos, documents, pdfs)
+const uploadsDir = path.join(process.cwd(), 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+app.use('/uploads', express.static(uploadsDir));
 
 // Master API Routes
 app.use('/api', routes);

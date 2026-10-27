@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Users,
   Calendar,
@@ -16,6 +17,7 @@ import {
   ExternalLink,
   ShieldCheck,
   CheckCircle2,
+  BookOpen,
 } from 'lucide-react';
 import api from '../../services/api.js';
 import { useAuthStore } from '../../store/authStore.js';
@@ -114,16 +116,25 @@ export const MentorDashboard: React.FC = () => {
         subtitle={`Welcome back, ${user?.name || 'Rajesh Ramanathan'}. Overseeing Freshers Growth Cohort 2026-A.`}
         badge={<StatusBadge label="Principal Mentor" variant="teal" />}
         actions={
-          <a
-            href="https://meet.google.com/cegs-fgt-mentor"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-4 py-2 bg-[#0F8F87] hover:bg-[#0D7A73] text-white rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-sm"
-          >
-            <Video className="w-4 h-4" />
-            <span>Launch Mentor Room</span>
-            <ExternalLink className="w-3.5 h-3.5" />
-          </a>
+          <div className="flex items-center gap-2">
+            <Link
+              to="/learning"
+              className="px-4 py-2 bg-white border border-slate-200 hover:border-[#0F8F87] text-slate-700 hover:text-[#0F8F87] rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-2xs"
+            >
+              <BookOpen className="w-4 h-4 text-[#0F8F87]" />
+              <span>Curriculum & Learning</span>
+            </Link>
+            <a
+              href="https://meet.google.com/cegs-fgt-mentor"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2 bg-[#0F8F87] hover:bg-[#0D7A73] text-white rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-sm"
+            >
+              <Video className="w-4 h-4" />
+              <span>Launch Mentor Room</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          </div>
         }
       />
 

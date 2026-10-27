@@ -26,6 +26,10 @@ yarn-error.log*
 credentials-migration-*.csv
 server/credentials-migration-*.csv
 
+# Uploaded files
+server/uploads/
+!server/uploads/.gitkeep
+
 # OS & Editor
 .DS_Store
 Thumbs.db
@@ -34,3 +38,4 @@ Thumbs.db
 *.swp
 *.swo
 *.webm
+
