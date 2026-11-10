@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, User, Eye, EyeOff, ArrowRight, AlertCircle, HelpCircle, X, ShieldAlert } from 'lucide-react';
 import { Lock, User, Eye, EyeOff, ArrowRight, AlertCircle, HelpCircle, X, ShieldAlert, Shield, GraduationCap, BookOpen } from 'lucide-react';
 import { useAuthStore } from '../store/authStore.js';
 import api from '../services/api.js';
