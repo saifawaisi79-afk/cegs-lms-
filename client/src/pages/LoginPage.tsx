@@ -1,8 +1,45 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, User, Eye, EyeOff, ArrowRight, AlertCircle, HelpCircle, X, ShieldAlert } from 'lucide-react';
+import { Lock, User, Eye, EyeOff, ArrowRight, AlertCircle, HelpCircle, X, ShieldAlert, Shield, GraduationCap, BookOpen } from 'lucide-react';
 import { useAuthStore } from '../store/authStore.js';
 import api from '../services/api.js';
+
+const DEMO_PORTALS = [
+  {
+    label: 'Admin Portal',
+    icon: Shield,
+    color: 'from-violet-600 to-purple-700',
+    border: 'border-violet-200',
+    bg: 'bg-violet-50 hover:bg-violet-100',
+    text: 'text-violet-700',
+    identifier: 'admin@careerexpertglobal.com',
+    password: 'Admin@12345',
+    route: '/admin',
+  },
+  {
+    label: 'Mentor Portal',
+    icon: GraduationCap,
+    color: 'from-blue-500 to-cyan-600',
+    border: 'border-blue-200',
+    bg: 'bg-blue-50 hover:bg-blue-100',
+    text: 'text-blue-700',
+    identifier: 'mentor@careerexpertglobal.com',
+    password: 'Mentor@12345',
+    route: '/mentor',
+  },
+  {
+    label: 'Student Portal',
+    icon: BookOpen,
+    color: 'from-teal-500 to-emerald-600',
+    border: 'border-teal-200',
+    bg: 'bg-teal-50 hover:bg-teal-100',
+    text: 'text-teal-700',
+    identifier: 'student@careerexpertglobal.com',
+    password: 'Student@12345',
+    route: '/dashboard',
+  },
+];
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -15,6 +52,30 @@ export const LoginPage: React.FC = () => {
   const [error, setError] = useState('');
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
   const [showForgotModal, setShowForgotModal] = useState(false);
+  const [demoLoading, setDemoLoading] = useState<string | null>(null);
+
+  const demoLogin = async (portal: typeof DEMO_PORTALS[0]) => {
+    setDemoLoading(portal.label);
+    setError('');
+    setErrorDetails(null);
+    try {
+      const res = await api.post('/auth/login', {
+        identifier: portal.identifier,
+        password: portal.password,
+      });
+      if (res.data?.success) {
+        const { user, token } = res.data;
+        setAuth(user, token);
+        navigate(portal.route);
+      } else {
+        setError(res.data?.message || 'Demo login failed.');
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Demo login failed. Ensure the server is running.');
+    } finally {
+      setDemoLoading(null);
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,6 +142,42 @@ export const LoginPage: React.FC = () => {
           <p className="text-xs text-slate-500 font-normal max-w-xs mx-auto">
             Authorized Portal Access · Enter your official Login ID or Registered Email
           </p>
+        </div>
+
+        {/* Demo Portal Buttons */}
+        <div className="space-y-2">
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center">Quick Demo Access</p>
+          <div className="grid grid-cols-3 gap-2">
+            {DEMO_PORTALS.map((portal) => {
+              const Icon = portal.icon;
+              const isLoading = demoLoading === portal.label;
+              return (
+                <button
+                  key={portal.label}
+                  type="button"
+                  onClick={() => demoLogin(portal)}
+                  disabled={!!demoLoading}
+                  className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border ${portal.border} ${portal.bg} transition disabled:opacity-60 disabled:cursor-not-allowed`}
+                >
+                  {isLoading ? (
+                    <div className={`w-8 h-8 rounded-xl bg-gradient-to-br ${portal.color} flex items-center justify-center shadow-sm`}>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  ) : (
+                    <div className={`w-8 h-8 rounded-xl bg-gradient-to-br ${portal.color} flex items-center justify-center shadow-sm`}>
+                      <Icon className="w-4 h-4 text-white" />
+                    </div>
+                  )}
+                  <span className={`text-[10px] font-bold ${portal.text} leading-tight text-center`}>{portal.label}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex items-center gap-2 pt-1">
+            <div className="flex-1 h-px bg-slate-100" />
+            <span className="text-[10px] text-slate-400 font-medium">or sign in manually</span>
+            <div className="flex-1 h-px bg-slate-100" />
+          </div>
         </div>
 
         {/* Error Alert */}

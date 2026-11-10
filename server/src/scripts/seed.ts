@@ -210,7 +210,7 @@ export const seedDatabase = async () => {
 
   console.log('✨ Creating Core Users (1 Admin, 2 Mentors, 14 Students across 5 Tracks)...');
   const adminId = await generateNextId('ADM');
-  const adminPassword = generateTemporaryPassword();
+  const adminPassword = 'Admin@12345';
   const adminUser = await User.create({
     userId: adminId,
     name: 'CEGS Administrator',
@@ -223,7 +223,7 @@ export const seedDatabase = async () => {
   });
 
   const mentor1Id = await generateNextId('MNTR');
-  const mentor1Password = generateTemporaryPassword();
+  const mentor1Password = 'Mentor@12345';
   const mentorUser = await User.create({
     userId: mentor1Id,
     name: 'Rajesh Ramanathan',
@@ -232,12 +232,12 @@ export const seedDatabase = async () => {
     role: 'mentor',
     avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
     isActive: true,
-    mustChangePassword: true,
+    mustChangePassword: false,
     createdBy: adminUser._id,
   });
 
   const mentor2Id = await generateNextId('MNTR');
-  const mentor2Password = generateTemporaryPassword();
+  const mentor2Password = 'Mentor@12345';
   const mentor2User = await User.create({
     userId: mentor2Id,
     name: 'Dr. Ananya Roy',
@@ -246,13 +246,13 @@ export const seedDatabase = async () => {
     role: 'mentor',
     avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150',
     isActive: true,
-    mustChangePassword: true,
+    mustChangePassword: false,
     createdBy: adminUser._id,
   });
 
   // Primary demo student
   const studentId = await generateNextId('STD');
-  const studentPassword = generateTemporaryPassword();
+  const studentPassword = 'Student@12345';
   const studentUser = await User.create({
     userId: studentId,
     name: 'Saif Khan',
@@ -262,12 +262,33 @@ export const seedDatabase = async () => {
     avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150',
     isActive: true,
     isFirstLogin: false,
-    mustChangePassword: true,
+    mustChangePassword: false,
     createdBy: mentorUser._id,
   });
 
+  console.log(`
+================================================================
+🔑 CEGS LMS - DEMO LOGIN CREDENTIALS
+================================================================
+👑 ADMIN
+   Email    : admin@careerexpertglobal.com
+   Password : Admin@12345
+
+🎓 MENTOR
+   Email    : mentor@careerexpertglobal.com
+   Password : Mentor@12345
+
+   Email    : ananya.roy@careerexpertglobal.com
+   Password : Mentor@12345
+
+🧑‍💻 STUDENT
+   Email    : student@careerexpertglobal.com
+   Password : Student@12345
+================================================================
+`);
+
   const peer1Id = await generateNextId('STD');
-  const peer1Password = generateTemporaryPassword();
+  const peer1Password = 'Student@12345';
   const peerStudent1 = await User.create({
     userId: peer1Id,
     name: 'Priya Sharma',
@@ -276,12 +297,12 @@ export const seedDatabase = async () => {
     role: 'student',
     avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
     isActive: true,
-    mustChangePassword: true,
+    mustChangePassword: false,
     createdBy: mentorUser._id,
   });
 
   const peer2Id = await generateNextId('STD');
-  const peer2Password = generateTemporaryPassword();
+  const peer2Password = 'Student@12345';
   const peerStudent2 = await User.create({
     userId: peer2Id,
     name: 'Rahul Verma',
